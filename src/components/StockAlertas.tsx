@@ -1,3 +1,4 @@
+import { hoyColombia } from "@/lib/fechas";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -36,7 +37,12 @@ import {
   Truck,
 } from "lucide-react";
 
-export type StockBajo = { tipo_id: string; tipo: string; disponibles: number; stock_minimo: number };
+export type StockBajo = {
+  tipo_id: string;
+  tipo: string;
+  disponibles: number;
+  stock_minimo: number;
+};
 
 export type PedidoEnCamino = {
   id: string;
@@ -57,7 +63,10 @@ export function useStockBajo() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("stock_bajo");
       if (error) throw error;
-      return ((data ?? []) as StockBajo[]).map((r) => ({ ...r, disponibles: Number(r.disponibles) }));
+      return ((data ?? []) as StockBajo[]).map((r) => ({
+        ...r,
+        disponibles: Number(r.disponibles),
+      }));
     },
   });
 }
@@ -94,7 +103,7 @@ export function infoLlegadaPedido(fechaEsperada: string | null) {
       cls: "border-border bg-muted/60 text-muted-foreground",
     };
   }
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = hoyColombia();
   const tEsp = new Date(`${fechaEsperada}T00:00:00`).getTime();
   const tHoy = new Date(`${hoyStr}T00:00:00`).getTime();
   const dias = Math.round((tEsp - tHoy) / 86_400_000);
@@ -166,7 +175,7 @@ export function CampanaAlertas() {
   const nPedidos = pedidosList.length;
   const totalAlertas = nStock + nPedidos;
   const hayCritico =
-    nStock > 0 || pedidosList.some((p) => p.fecha_esperada && p.fecha_esperada <= new Date().toISOString().slice(0, 10));
+    nStock > 0 || pedidosList.some((p) => p.fecha_esperada && p.fecha_esperada <= hoyColombia());
   const puedeReabastecer = !!me?.can("reabastecimiento_gestionar");
 
   useEffect(() => {
@@ -193,7 +202,9 @@ export function CampanaAlertas() {
             {totalAlertas > 0 && (
               <span
                 className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] font-semibold shadow-sm ${
-                  hayCritico ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"
+                  hayCritico
+                    ? "bg-destructive text-destructive-foreground"
+                    : "bg-primary text-primary-foreground"
                 }`}
               >
                 {totalAlertas}
@@ -201,12 +212,17 @@ export function CampanaAlertas() {
             )}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-96 overflow-hidden rounded-2xl border-border/80 p-0 shadow-xl">
+        <PopoverContent
+          align="start"
+          className="w-96 overflow-hidden rounded-2xl border-border/80 p-0 shadow-xl"
+        >
           {/* Cabecera del panel de notificaciones */}
           <div className="flex items-center justify-between border-b border-border/60 bg-muted/25 px-4 py-2.5">
             <div className="flex items-center gap-2">
               <Bell className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-semibold tracking-tight text-foreground">Notificaciones</span>
+              <span className="text-xs font-semibold tracking-tight text-foreground">
+                Notificaciones
+              </span>
               {totalAlertas > 0 && (
                 <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] font-semibold text-foreground">
                   {totalAlertas}
@@ -239,7 +255,9 @@ export function CampanaAlertas() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <AlertTriangle className={`h-3.5 w-3.5 ${nStock > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+              <AlertTriangle
+                className={`h-3.5 w-3.5 ${nStock > 0 ? "text-destructive" : "text-muted-foreground"}`}
+              />
               <span>Stock bajo</span>
               <span
                 className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-semibold ${
@@ -261,13 +279,13 @@ export function CampanaAlertas() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Truck className={`h-3.5 w-3.5 ${nPedidos > 0 ? "text-primary" : "text-muted-foreground"}`} />
+              <Truck
+                className={`h-3.5 w-3.5 ${nPedidos > 0 ? "text-primary" : "text-muted-foreground"}`}
+              />
               <span>Pedidos</span>
               <span
                 className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-semibold ${
-                  nPedidos > 0
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground"
+                  nPedidos > 0 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {nPedidos}
@@ -293,7 +311,9 @@ export function CampanaAlertas() {
                   {stockList.map((a) => {
                     const sugerida = Math.max(1, a.stock_minimo - a.disponibles + 1);
                     const pct =
-                      a.stock_minimo > 0 ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100)) : 0;
+                      a.stock_minimo > 0
+                        ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100))
+                        : 0;
                     const contenido = (
                       <div className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50">
                         <div className="flex items-center justify-between gap-2 text-xs">
@@ -304,7 +324,8 @@ export function CampanaAlertas() {
                         </div>
                         <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
                           <span>
-                            Disponibles: <b className="font-mono text-destructive">{a.disponibles}</b> / mín.{" "}
+                            Disponibles:{" "}
+                            <b className="font-mono text-destructive">{a.disponibles}</b> / mín.{" "}
                             <b className="font-mono text-foreground">{a.stock_minimo}</b>
                           </span>
                           {puedeReabastecer && (
@@ -312,7 +333,10 @@ export function CampanaAlertas() {
                           )}
                         </div>
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div className="h-full bg-destructive transition-all" style={{ width: `${pct}%` }} />
+                          <div
+                            className="h-full bg-destructive transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
                       </div>
                     );
@@ -378,7 +402,10 @@ export function CampanaAlertas() {
                             {info.etiqueta}
                           </span>
                         </div>
-                        <div className="mt-1 truncate text-[11px] text-muted-foreground" title={resumenArt}>
+                        <div
+                          className="mt-1 truncate text-[11px] text-muted-foreground"
+                          title={resumenArt}
+                        >
                           {resumenArt || `${recU}/${totalU} unidades`}
                         </div>
                         <div className="mt-1.5 flex items-center justify-between text-[11px]">
@@ -386,7 +413,8 @@ export function CampanaAlertas() {
                             <CalendarClock className="h-3 w-3 text-primary" />
                             {p.fecha_esperada ? (
                               <span>
-                                Entrega esperada: <b className="text-foreground">{fmtFecha(p.fecha_esperada)}</b>
+                                Entrega esperada:{" "}
+                                <b className="text-foreground">{fmtFecha(p.fecha_esperada)}</b>
                               </span>
                             ) : (
                               <span>Sin fecha estimada</span>
@@ -396,7 +424,10 @@ export function CampanaAlertas() {
                         </div>
                         <div className="mt-2 flex items-center gap-2">
                           <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                            <div
+                              className="h-full bg-primary transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
                           </div>
                           <span className="font-mono text-[10px] text-muted-foreground">
                             {recU}/{totalU}
@@ -478,7 +509,12 @@ export function BannerStock() {
       <>
         {puedeReabastecer && (
           <div className="mb-4 flex justify-end">
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setConfig(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => setConfig(true)}
+            >
               <Bell className="mr-1.5 h-3.5 w-3.5 text-primary" />
               Configurar alertas de stock
             </Button>
@@ -518,7 +554,9 @@ export function BannerStock() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <AlertTriangle className={`h-3.5 w-3.5 ${lista.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+              <AlertTriangle
+                className={`h-3.5 w-3.5 ${lista.length > 0 ? "text-destructive" : "text-muted-foreground"}`}
+              />
               <span>Stock bajo</span>
               <span
                 className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-semibold ${
@@ -540,7 +578,9 @@ export function BannerStock() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Truck className={`h-3.5 w-3.5 ${pedidos.length > 0 ? "text-primary" : "text-muted-foreground"}`} />
+              <Truck
+                className={`h-3.5 w-3.5 ${pedidos.length > 0 ? "text-primary" : "text-muted-foreground"}`}
+              />
               <span>Pedidos en camino</span>
               <span
                 className={`rounded-full px-1.5 py-0.2 font-mono text-[10px] font-semibold ${
@@ -556,12 +596,21 @@ export function BannerStock() {
 
           {puedeReabastecer && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setConfig(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => setConfig(true)}
+              >
                 <Settings2 className="mr-1.5 h-3.5 w-3.5" />
                 Configurar alertas
               </Button>
               {tab === "stock" && lista.length > 0 ? (
-                <Button size="sm" className="h-8 text-xs" onClick={() => setTipo(lista[0]!.tipo_id)}>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setTipo(lista[0]!.tipo_id)}
+                >
                   <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
                   Ver proveedores / Reabastecer
                 </Button>
@@ -588,7 +637,9 @@ export function BannerStock() {
               {lista.map((a) => {
                 const sugerida = Math.max(1, a.stock_minimo - a.disponibles + 1);
                 const pct =
-                  a.stock_minimo > 0 ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100)) : 0;
+                  a.stock_minimo > 0
+                    ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100))
+                    : 0;
                 return (
                   <button
                     key={a.tipo_id}
@@ -599,10 +650,12 @@ export function BannerStock() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-xs font-semibold text-foreground group-hover:text-primary">{a.tipo}</div>
+                        <div className="text-xs font-semibold text-foreground group-hover:text-primary">
+                          {a.tipo}
+                        </div>
                         <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          Disponibles: <b className="font-mono text-destructive">{a.disponibles}</b> · Mínimo:{" "}
-                          <b className="font-mono text-foreground">{a.stock_minimo}</b>
+                          Disponibles: <b className="font-mono text-destructive">{a.disponibles}</b>{" "}
+                          · Mínimo: <b className="font-mono text-foreground">{a.stock_minimo}</b>
                         </div>
                       </div>
                       <span className="rounded-md border border-destructive/30 bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-destructive">
@@ -656,18 +709,26 @@ export function BannerStock() {
                         <span className="font-mono text-primary">#{p.numero}</span> ·{" "}
                         {p.proveedor?.nombre ?? "Proveedor"}
                       </span>
-                      <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${info.cls}`}>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${info.cls}`}
+                      >
                         {info.etiqueta}
                       </span>
                     </div>
-                    <div className="mt-1 truncate text-[11px] text-muted-foreground" title={articulos}>
+                    <div
+                      className="mt-1 truncate text-[11px] text-muted-foreground"
+                      title={articulos}
+                    >
                       {articulos}
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                       <CalendarClock className="h-3 w-3 shrink-0 text-primary" />
                       {p.fecha_esperada ? (
                         <span>
-                          Entrega esperada: <b className="font-medium text-foreground">{fmtFecha(p.fecha_esperada)}</b>
+                          Entrega esperada:{" "}
+                          <b className="font-medium text-foreground">
+                            {fmtFecha(p.fecha_esperada)}
+                          </b>
                         </span>
                       ) : (
                         <span>Sin fecha de entrega definida</span>
@@ -677,7 +738,10 @@ export function BannerStock() {
 
                   <div className="mt-2.5 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                     <span className="font-mono text-[10px] text-muted-foreground">
                       {recibidas}/{pedidas}
@@ -721,7 +785,8 @@ export function ConfigAlertas({
   const q = useQuery({
     queryKey: ["alertas_config"],
     enabled: open,
-    queryFn: async () => (await supabase.from("alertas_stock_config").select("*").order("created_at")).data ?? [],
+    queryFn: async () =>
+      (await supabase.from("alertas_stock_config").select("*").order("created_at")).data ?? [],
   });
   const refrescar = () => {
     qc.invalidateQueries({ queryKey: ["alertas_config"] });
@@ -736,7 +801,10 @@ export function ConfigAlertas({
     const { error } = await supabase
       .from("alertas_stock_config")
       .insert({ tipo_id: nuevo.tipo_id, stock_minimo: min });
-    if (error) return toast.error(error.code === "23505" ? "Ese artículo ya tiene una alerta." : errMsg(error));
+    if (error)
+      return toast.error(
+        error.code === "23505" ? "Ese artículo ya tiene una alerta." : errMsg(error),
+      );
     setNuevo({ tipo_id: "", min: "3" });
     refrescar();
     toast.success("Alerta de stock creada");
@@ -767,9 +835,12 @@ export function ConfigAlertas({
               <Bell className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold tracking-tight">Configurar alertas de stock</DialogTitle>
+              <DialogTitle className="text-base font-semibold tracking-tight">
+                Configurar alertas de stock
+              </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Recibe avisos automáticos cuando los equipos disponibles de un tipo sean iguales o menores al umbral.
+                Recibe avisos automáticos cuando los equipos disponibles de un tipo sean iguales o
+                menores al umbral.
               </p>
             </div>
           </div>
@@ -805,7 +876,9 @@ export function ConfigAlertas({
                 <div className="flex items-center rounded-lg border border-input bg-background">
                   <button
                     type="button"
-                    onClick={() => setNuevo({ ...nuevo, min: String(Math.max(0, (Number(nuevo.min) || 0) - 1)) })}
+                    onClick={() =>
+                      setNuevo({ ...nuevo, min: String(Math.max(0, (Number(nuevo.min) || 0) - 1)) })
+                    }
                     className="flex h-9 w-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label="Disminuir mínimo"
                   >
@@ -820,7 +893,9 @@ export function ConfigAlertas({
                   />
                   <button
                     type="button"
-                    onClick={() => setNuevo({ ...nuevo, min: String((Number(nuevo.min) || 0) + 1) })}
+                    onClick={() =>
+                      setNuevo({ ...nuevo, min: String((Number(nuevo.min) || 0) + 1) })
+                    }
                     className="flex h-9 w-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label="Aumentar mínimo"
                   >
@@ -848,7 +923,10 @@ export function ConfigAlertas({
                 const enAlerta = mapaBajos.has(a.tipo_id);
                 const disp = mapaBajos.get(a.tipo_id);
                 return (
-                  <li key={a.id} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm"
+                  >
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
@@ -930,7 +1008,13 @@ type Vinculo = {
   proveedor: ProvRow | null;
 };
 
-export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; onClose: () => void }) {
+export function ProveedoresSheet({
+  tipoId,
+  onClose,
+}: {
+  tipoId: string | null;
+  onClose: () => void;
+}) {
   const cat = useCatalogos();
   const qc = useQueryClient();
   const { data: me } = useMe();
@@ -951,14 +1035,21 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
     enabled: !!actualId,
     queryFn: async () => {
       const [vin, todos, disp, cfg, sol] = await Promise.all([
-        supabase.from("articulo_proveedores").select("*, proveedor:proveedores(*)").eq("tipo_id", actualId!),
+        supabase
+          .from("articulo_proveedores")
+          .select("*, proveedor:proveedores(*)")
+          .eq("tipo_id", actualId!),
         supabase.from("proveedores").select("id, nombre").eq("activo", true).order("nombre"),
         supabase
           .from("equipos")
           .select("id", { count: "exact", head: true })
           .eq("tipo_id", actualId!)
           .eq("estado", "disponible"),
-        supabase.from("alertas_stock_config").select("id, stock_minimo, activa").eq("tipo_id", actualId!).maybeSingle(),
+        supabase
+          .from("alertas_stock_config")
+          .select("id, stock_minimo, activa")
+          .eq("tipo_id", actualId!)
+          .maybeSingle(),
         supabase
           .from("pedido_lineas")
           .select(
@@ -1011,8 +1102,13 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
     const v = Number(minVal);
     if (!Number.isInteger(v) || v < 0) return toast.error("Ingrese un stock mínimo válido");
     const { error } = d?.alertaId
-      ? await supabase.from("alertas_stock_config").update({ stock_minimo: v, activa: true }).eq("id", d.alertaId)
-      : await supabase.from("alertas_stock_config").insert({ tipo_id: actualId, stock_minimo: v, activa: true });
+      ? await supabase
+          .from("alertas_stock_config")
+          .update({ stock_minimo: v, activa: true })
+          .eq("id", d.alertaId)
+      : await supabase
+          .from("alertas_stock_config")
+          .insert({ tipo_id: actualId, stock_minimo: v, activa: true });
     if (error) return toast.error(errMsg(error));
     toast.success("Umbral de alerta actualizado");
     setEditandoMin(false);
@@ -1025,7 +1121,10 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
     const { error } = await supabase
       .from("articulo_proveedores")
       .insert({ tipo_id: actualId, proveedor_id, es_principal: !d?.vinculos.length });
-    if (error) return toast.error(error.code === "23505" ? "Ese proveedor ya está vinculado." : errMsg(error));
+    if (error)
+      return toast.error(
+        error.code === "23505" ? "Ese proveedor ya está vinculado." : errMsg(error),
+      );
     setExistente("");
     toast.success("Proveedor vinculado al artículo");
     refrescar();
@@ -1038,7 +1137,10 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
       .update({ es_principal: false })
       .eq("tipo_id", actualId!)
       .eq("es_principal", true);
-    const { error } = await supabase.from("articulo_proveedores").update({ es_principal: true }).eq("id", v.id);
+    const { error } = await supabase
+      .from("articulo_proveedores")
+      .update({ es_principal: true })
+      .eq("id", v.id);
     if (error) toast.error(errMsg(error));
     else {
       toast.success(`${v.proveedor?.nombre} marcado como proveedor principal`);
@@ -1055,7 +1157,9 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
   const vinculados = new Set((d?.vinculos ?? []).map((v) => v.proveedor_id));
   const critico = d && d.minimo !== null && d.disponibles <= d.minimo;
   const pctStock =
-    d && d.minimo && d.minimo > 0 ? Math.min(100, Math.round((d.disponibles / d.minimo) * 100)) : 100;
+    d && d.minimo && d.minimo > 0
+      ? Math.min(100, Math.round((d.disponibles / d.minimo) * 100))
+      : 100;
 
   return (
     <Sheet open={!!tipoId} onOpenChange={(o) => !o && onClose()}>
@@ -1131,9 +1235,12 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                   )}
                 </div>
                 <div className="mt-1 flex items-baseline gap-2">
-                  <span className="font-mono text-2xl font-bold text-foreground">{d ? d.disponibles : "…"}</span>
+                  <span className="font-mono text-2xl font-bold text-foreground">
+                    {d ? d.disponibles : "…"}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    disponible(s) {d?.minimo != null ? `· mínimo requerido: ${d.minimo}` : "· sin alerta activa"}
+                    disponible(s){" "}
+                    {d?.minimo != null ? `· mínimo requerido: ${d.minimo}` : "· sin alerta activa"}
                   </span>
                 </div>
               </div>
@@ -1176,7 +1283,12 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                 <Button size="sm" className="h-8 text-xs" onClick={guardarUmbral}>
                   Guardar
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditandoMin(false)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs"
+                  onClick={() => setEditandoMin(false)}
+                >
                   Cancelar
                 </Button>
               </div>
@@ -1185,9 +1297,12 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
             {puedeReabastecer && (
               <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
                 <div>
-                  <Label className="text-xs font-medium text-foreground">Cantidad a solicitar</Label>
+                  <Label className="text-xs font-medium text-foreground">
+                    Cantidad a solicitar
+                  </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Sugerido para superar el mínimo: <b className="font-mono text-foreground">{sugerida} u.</b>
+                    Sugerido para superar el mínimo:{" "}
+                    <b className="font-mono text-foreground">{sugerida} u.</b>
                   </p>
                 </div>
                 <div className="flex items-center rounded-lg border border-input bg-background shadow-2xs">
@@ -1247,11 +1362,14 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-foreground">
                         <Clock className="mr-1.5 inline h-3.5 w-3.5 text-warning" />
-                        Pedido <b className="font-mono">#{p.numero}</b> · {p.proveedor?.nombre ?? "—"}
+                        Pedido <b className="font-mono">#{p.numero}</b> ·{" "}
+                        {p.proveedor?.nombre ?? "—"}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {p.fecha_esperada && (
-                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${info.cls}`}>
+                          <span
+                            className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-medium ${info.cls}`}
+                          >
                             {info.etiqueta}
                           </span>
                         )}
@@ -1260,11 +1378,19 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                     </div>
                     <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>
-                        Recibidos: <b className="font-mono text-foreground">{l.recibida}/{l.cantidad}</b> unidades
-                        {p.fecha_esperada ? ` · Entrega esperada: ${fmtFecha(p.fecha_esperada)}` : ""}
+                        Recibidos:{" "}
+                        <b className="font-mono text-foreground">
+                          {l.recibida}/{l.cantidad}
+                        </b>{" "}
+                        unidades
+                        {p.fecha_esperada
+                          ? ` · Entrega esperada: ${fmtFecha(p.fecha_esperada)}`
+                          : ""}
                       </span>
                       {puedeReabastecer && (
-                        <span className="font-medium text-foreground group-hover:underline">Ver / Recibir →</span>
+                        <span className="font-medium text-foreground group-hover:underline">
+                          Ver / Recibir →
+                        </span>
                       )}
                     </div>
                   </button>
@@ -1280,7 +1406,9 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                 Proveedores aliados ({(d?.vinculos ?? []).length})
               </h3>
               {puedeProveedores && (d?.vinculos ?? []).length > 1 && (
-                <span className="text-[11px] text-muted-foreground">★ marca el proveedor sugerido</span>
+                <span className="text-[11px] text-muted-foreground">
+                  ★ marca el proveedor sugerido
+                </span>
               )}
             </div>
 
@@ -1383,7 +1511,8 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                         <div className="text-xs text-muted-foreground">
                           {precioEst != null ? (
                             <span>
-                              Est. por {cant} u.: <b className="font-mono text-foreground">{cop(precioEst * cant)}</b>
+                              Est. por {cant} u.:{" "}
+                              <b className="font-mono text-foreground">{cop(precioEst * cant)}</b>
                             </span>
                           ) : (
                             <span>Sin precio de referencia registrado</span>
@@ -1406,7 +1535,8 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                     Aún no hay proveedores vinculados a {nombre}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Vincula un proveedor existente o registra uno nuevo abajo para poder realizar pedidos.
+                    Vincula un proveedor existente o registra uno nuevo abajo para poder realizar
+                    pedidos.
                   </p>
                 </li>
               )}
@@ -1421,7 +1551,11 @@ export function ProveedoresSheet({ tipoId, onClose }: { tipoId: string | null; o
                 Agregar proveedor para {nombre}
               </div>
               <div className="flex gap-2">
-                <select className={sel} value={existente} onChange={(e) => setExistente(e.target.value)}>
+                <select
+                  className={sel}
+                  value={existente}
+                  onChange={(e) => setExistente(e.target.value)}
+                >
                   <option value="">Seleccionar proveedor existente…</option>
                   {(d?.todos ?? [])
                     .filter((p) => !vinculados.has(p.id))

@@ -36,14 +36,14 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
     const resEmp1 = await db.query(
       `insert into public.empleados (nombre, identificacion, user_id, owner_id)
        values ('Empleado Uno', '111111', $1::uuid, $2::uuid) returning id`,
-      [EMPLEADO_USER_1, ADMIN_ID]
+      [EMPLEADO_USER_1, ADMIN_ID],
     );
     empRow1Id = (resEmp1.rows[0] as { id: string }).id;
 
     const resEmp2 = await db.query(
       `insert into public.empleados (nombre, identificacion, user_id, owner_id)
        values ('Empleado Dos', '222222', $1::uuid, $2::uuid) returning id`,
-      [EMPLEADO_USER_2, ADMIN_ID]
+      [EMPLEADO_USER_2, ADMIN_ID],
     );
     empRow2Id = (resEmp2.rows[0] as { id: string }).id;
 
@@ -53,29 +53,29 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
     const r1 = await db.query(
       `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
        values ('SN-EMP-1', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid) returning id`,
-      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
+      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
     );
     eqEmp1Id = (r1.rows[0] as { id: string }).id;
     await db.query(
       `update public.equipos set estado = 'asignado', empleado_id = $1::uuid where id = $2::uuid`,
-      [empRow1Id, eqEmp1Id]
+      [empRow1Id, eqEmp1Id],
     );
 
     const r2 = await db.query(
       `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
        values ('SN-EMP-2', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid) returning id`,
-      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
+      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
     );
     eqEmp2Id = (r2.rows[0] as { id: string }).id;
     await db.query(
       `update public.equipos set estado = 'asignado', empleado_id = $1::uuid where id = $2::uuid`,
-      [empRow2Id, eqEmp2Id]
+      [empRow2Id, eqEmp2Id],
     );
 
     const r3 = await db.query(
       `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
        values ('SN-DISP', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid) returning id`,
-      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
+      [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
     );
     eqDispId = (r3.rows[0] as { id: string }).id;
 
@@ -83,12 +83,12 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
     await db.query(
       `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
        values ('entrega', $1::uuid, $2::uuid, $3::uuid)`,
-      [empRow1Id, ADMIN_ID, ADMIN_ID]
+      [empRow1Id, ADMIN_ID, ADMIN_ID],
     );
     await db.query(
       `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
        values ('entrega', $1::uuid, $2::uuid, $3::uuid)`,
-      [empRow2Id, ADMIN_ID, ADMIN_ID]
+      [empRow2Id, ADMIN_ID, ADMIN_ID],
     );
 
     await db.exec("set app.estado_ok = '';");
@@ -116,13 +116,13 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
     // Insertamos un token como service_role
     await db.query(
       `insert into public.tokens_firma (acta_id, token, expires_at)
-       select id, 'token-secreto-xyz', now() + interval '1 day' from public.actas limit 1`
+       select id, 'token-secreto-xyz', now() + interval '1 day' from public.actas limit 1`,
     );
 
     await withUser(db, EMPLEADO_USER_1, async () => {
-      await expect(
-        db.query("select token from public.tokens_firma")
-      ).rejects.toThrow(/permission denied/);
+      await expect(db.query("select token from public.tokens_firma")).rejects.toThrow(
+        /permission denied/,
+      );
     });
   });
 
@@ -130,7 +130,7 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
     await withUser(db, EMPLEADO_USER_1, async () => {
       // Intenta reportar falla en equipo de otro empleado
       await expect(
-        db.query(`select public.reportar_falla($1::uuid, 'Pantalla rota')`, [eqEmp2Id])
+        db.query(`select public.reportar_falla($1::uuid, 'Pantalla rota')`, [eqEmp2Id]),
       ).rejects.toThrow(/El equipo no está a su cargo/);
 
       // Reporta falla en su propio equipo
@@ -138,7 +138,7 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
 
       const rep = await db.query(
         `select descripcion, estado from public.reportes_falla where equipo_id = $1::uuid`,
-        [eqEmp1Id]
+        [eqEmp1Id],
       );
       expect(rep.rows).toHaveLength(1);
       expect((rep.rows[0] as { estado: string }).estado).toBe("abierto");
@@ -151,8 +151,8 @@ describe("RLS y Portal: Restricciones del Rol Empleado", () => {
         db.query(
           `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
            values ('HACK-EMP', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid)`,
-          [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
-        )
+          [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
+        ),
       ).rejects.toThrow();
     });
   });

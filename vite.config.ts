@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig(({ command }) => ({
   server: {
-    host: "::",
+    host: "127.0.0.1",
     port: 8080,
   },
   resolve: {
@@ -31,7 +31,8 @@ export default defineConfig(({ command }) => ({
         },
       },
     }),
-    ...(command === "build" ? [nitro()] : []),
+    // Evita copias simultáneas de versiones duplicadas de tslib en Windows.
+    ...(command === "build" ? [nitro({ noExternals: ["tslib"] })] : []),
     viteReact(),
   ],
 }));

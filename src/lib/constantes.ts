@@ -129,16 +129,27 @@ export const ESTADO_ACTA: Record<string, { label: string; cls: string; dot?: str
   },
 };
 
-export const TIPO_ACTA: Record<string, string> = { entrega: "Entrega", devolucion: "Devolución", cambio: "Cambio" };
+export const TIPO_ACTA: Record<string, string> = {
+  entrega: "Entrega",
+  devolucion: "Devolución",
+  cambio: "Cambio",
+};
 
-export const DESTINO_DEVOLUCION: Record<string, string> = { disponible: "Disponible inmediato", en_alistamiento: "En alistamiento / revisión", en_reparacion: "En reparación" };
+export const DESTINO_DEVOLUCION: Record<string, string> = {
+  disponible: "Disponible inmediato",
+  en_alistamiento: "En alistamiento / revisión",
+  en_reparacion: "En reparación",
+};
 
 export function fmtFecha(d?: string | null, hora = false) {
   if (!d) return "—";
-  const date = new Date(d.length === 10 ? d + "T12:00:00" : d);
-  return date.toLocaleString("es-CO", hora
-    ? { dateStyle: "medium", timeStyle: "short" }
-    : { dateStyle: "medium" });
+  const date = new Date(d.length === 10 ? d + "T12:00:00-05:00" : d);
+  return date.toLocaleString(
+    "es-CO",
+    hora
+      ? { dateStyle: "medium", timeStyle: "short", timeZone: "America/Bogota" }
+      : { dateStyle: "medium", timeZone: "America/Bogota" },
+  );
 }
 
 export function descargarCSV(nombre: string, filas: Record<string, unknown>[]) {
@@ -149,14 +160,23 @@ export function descargarCSV(nombre: string, filas: Record<string, unknown>[]) {
     const safe = /^[=+\-@\t\r]/.test(raw.trimStart()) ? `'${raw}` : raw;
     return `"${safe.replace(/"/g, '""')}"`;
   };
-  const csv = "\uFEFF" + [cols.join(";"), ...filas.map((f) => cols.map((c) => esc(f[c])).join(";"))].join("\n");
+  const csv =
+    "\uFEFF" +
+    [cols.join(";"), ...filas.map((f) => cols.map((c) => esc(f[c])).join(";"))].join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
-  a.href = url; a.download = nombre; a.click();
+  a.href = url;
+  a.download = nombre;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
 export function errMsg(e: unknown) {
-  const m = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
+  const m =
+    e instanceof Error
+      ? e.message
+      : typeof e === "object" && e && "message" in e
+        ? String((e as { message: unknown }).message)
+        : String(e);
   return m.replace(/^PAZ_Y_SALVO:\s*/, "");
 }

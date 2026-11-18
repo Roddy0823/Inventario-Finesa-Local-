@@ -1,0 +1,232 @@
+{
+  "date": "2026-11-18",
+  "status": "Correcciones aplicadas al código y a la instalación local",
+  "findings": [
+    {
+      "id": "01",
+      "priority": "P1",
+      "title": "Vite y Rolldown vulnerables si se expone el servidor de desarrollo",
+      "status": "Implementado",
+      "correction": "Vite 8.3.7, Rolldown 1.2.19 y servidor de desarrollo restringido al equipo local."
+    },
+    {
+      "id": "02",
+      "priority": "P1",
+      "title": "El vínculo editable empleado–usuario permite suplantar al receptor",
+      "status": "Implementado",
+      "correction": "Columnas de identidad y PIN protegidas; validación del rol y del vínculo del receptor."
+    },
+    {
+      "id": "03",
+      "priority": "P1",
+      "title": "La firma no es idempotente y puede sobrescribir el PDF definitivo",
+      "status": "Implementado",
+      "correction": "Reserva de firma, rutas únicas sin sobrescritura, confirmación atómica y recuperación idempotente."
+    },
+    {
+      "id": "04",
+      "priority": "P1",
+      "title": "La firma aplica movimientos sin revalidar la situación actual",
+      "status": "Implementado",
+      "correction": "Bloqueo y revalidación del empleado, equipos y estado del documento antes de confirmar."
+    },
+    {
+      "id": "05",
+      "priority": "P1",
+      "title": "RPC y referencias de actas permiten cruzar ecosistemas",
+      "status": "Implementado",
+      "correction": "Validación del propietario en RPC y referencias de equipos, actas, catálogos y proveedores."
+    },
+    {
+      "id": "06",
+      "priority": "P1",
+      "title": "La recuperación por correo interno puede tomar una cuenta de personal",
+      "status": "Implementado",
+      "correction": "Rechazo de colisiones de correo y del dominio reservado para empleados al crear personal."
+    },
+    {
+      "id": "07",
+      "priority": "P1",
+      "title": "El contador de PIN pierde intentos concurrentes",
+      "status": "Implementado",
+      "correction": "Reserva transaccional de intentos de PIN y bloqueo de 15 minutos al alcanzar cinco intentos."
+    },
+    {
+      "id": "08",
+      "priority": "P1",
+      "title": "La carga masiva conserva datos al cambiar de usuario",
+      "status": "Implementado",
+      "correction": "Carga vinculada a la identidad, cancelación de peticiones y rechazo de resultados de sesiones anteriores."
+    },
+    {
+      "id": "09",
+      "priority": "P1",
+      "title": "Una firma cancelada puede enviarse con el lienzo vacío",
+      "status": "Implementado",
+      "correction": "Limpieza del lienzo y del valor de la firma al cancelar o reiniciar."
+    },
+    {
+      "id": "10",
+      "priority": "P2",
+      "title": "El PDF de actas pierde contenido al crecer",
+      "status": "Implementado",
+      "correction": "PDF con paginación, ajuste de líneas y conservación de textos largos, incluidas las etiquetas de firma."
+    },
+    {
+      "id": "11",
+      "priority": "P2",
+      "title": "Cédulas con separadores pueden quedar sin acceso",
+      "status": "Implementado",
+      "correction": "Identificación normalizada, indexada y única; consulta exacta al autenticar empleados."
+    },
+    {
+      "id": "12",
+      "priority": "P2",
+      "title": "La paginación de actas cambia la URL pero no las filas",
+      "status": "Implementado",
+      "correction": "Rango consultado y controles de paginación sincronizados con la URL."
+    },
+    {
+      "id": "13",
+      "priority": "P2",
+      "title": "Las actas de cambio se contabilizan como devoluciones completas",
+      "status": "Implementado",
+      "correction": "Cómputo de movimientos según la dirección de cada línea de las actas de cambio."
+    },
+    {
+      "id": "14",
+      "priority": "P2",
+      "title": "La recepción acepta cantidades negativas y supera lo pedido",
+      "status": "Implementado",
+      "correction": "Validación de cantidades, precios y límites de recepción en interfaz y base de datos."
+    },
+    {
+      "id": "15",
+      "priority": "P2",
+      "title": "Suspender el perfil no corta todas las lecturas directas",
+      "status": "Implementado",
+      "correction": "Políticas restrictivas para cuentas suspendidas y empleados inactivos."
+    },
+    {
+      "id": "16",
+      "priority": "P2",
+      "title": "Un cambio admite líneas sin dirección y se firma sin movimiento",
+      "status": "Implementado",
+      "correction": "Dirección obligatoria y validación de cada línea de cambio antes de firmar."
+    },
+    {
+      "id": "17",
+      "priority": "P2",
+      "title": "El token se consume antes de completar una firma recuperable",
+      "status": "Implementado",
+      "correction": "Consumo del token dentro de la confirmación final de la firma."
+    },
+    {
+      "id": "18",
+      "priority": "P2",
+      "title": "Varias operaciones críticas ignoran errores y reportan éxito",
+      "status": "Implementado",
+      "correction": "Propagación de errores de consultas, escrituras y auditoría; eliminación de confirmaciones falsas."
+    },
+    {
+      "id": "19",
+      "priority": "P2",
+      "title": "Un PNG pequeño puede declarar dimensiones desmesuradas",
+      "status": "Implementado",
+      "correction": "Validación de estructura PNG, CRC, dimensiones, píxeles y descompresión limitada."
+    },
+    {
+      "id": "20",
+      "priority": "P2",
+      "title": "Pedidos y préstamos pueden quedar parcialmente creados",
+      "status": "Implementado",
+      "correction": "Creación transaccional de pedidos, actas y préstamos de contingencia mediante RPC."
+    },
+    {
+      "id": "21",
+      "priority": "P2",
+      "title": "Exportaciones e historiales pueden truncarse sin aviso",
+      "status": "Implementado",
+      "correction": "Paginación completa de exportaciones e historiales y fragmentación de consultas por IDs."
+    },
+    {
+      "id": "22",
+      "priority": "P2",
+      "title": "La firma remota no invalida el detalle abierto",
+      "status": "Implementado",
+      "correction": "Invalidación de las claves de caché correspondientes al detalle del acta firmada."
+    },
+    {
+      "id": "23",
+      "priority": "P1",
+      "title": "La ruta de firma del técnico procede de un dato controlable",
+      "status": "Implementado",
+      "correction": "Copia de firma técnica desde el perfil en servidor a una ruta única; conservación ante respuestas inciertas."
+    },
+    {
+      "id": "24",
+      "priority": "P2",
+      "title": "El lint no constituye hoy una barrera de calidad útil",
+      "status": "Implementado",
+      "correction": "Formato uniforme, exclusión de archivos generados, controles de tipos, lint y CI."
+    },
+    {
+      "id": "25",
+      "priority": "P2",
+      "title": "Cambiar la carpeta de configuración no aísla los datos Docker",
+      "status": "Implementado",
+      "correction": "Comprobación de identidad de la instalación Docker antes de preparar o iniciar; respaldo con configuración original."
+    },
+    {
+      "id": "26",
+      "priority": "P2",
+      "title": "La importación utiliza una versión de XLSX con avisos de seguridad",
+      "status": "Implementado",
+      "correction": "SheetJS actualizado al paquete oficial 0.20.3 y lockfile renovado."
+    }
+  ],
+  "additional": "Corregida la discrepancia de tema entre el HTML inicial del servidor y la hidratación del navegador.",
+  "verification": {
+    "suite": {
+      "passed": 224,
+      "failed": 0
+    },
+    "finalThemeRegression": {
+      "passed": 1,
+      "failed": 0
+    },
+    "runtime": {
+      "passed": 8,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "lintErrors": 0,
+    "lintWarnings": 17,
+    "build": "passed",
+    "live": "Auth, lecturas con RLS, carga/descarga/eliminación de archivo temporal y HTTP 200 verificados",
+    "browser": "Pantalla de ingreso renderizada; sin errores de consola en la versión final",
+    "migration": "Ensayo BEGIN/ROLLBACK, aplicación confirmada y cotejo de conteos",
+    "before": {
+      "empleados": 439,
+      "equipos": 1663,
+      "actas": 7,
+      "acta_items": 8,
+      "pedidos": 1,
+      "usuarios": 3,
+      "objetos_storage": 28,
+      "migraciones": 4
+    },
+    "after": {
+      "empleados": 439,
+      "equipos": 1663,
+      "actas": 7,
+      "acta_items": 8,
+      "pedidos": 1,
+      "usuarios": 3,
+      "objetos_storage": 28,
+      "migraciones": 5
+    }
+  },
+  "backup": "<directorio-local-de-configuracion>/backups/2026-11-18T19-42-41-049Z",
+  "scope": "Las operaciones de firma, suspensión y movimientos de inventario se comprobaron con pruebas aisladas. La comprobación de navegador cubre el acceso; no constituye un recorrido manual de todos los módulos. El respaldo se verificó mediante lectura de archivos y SHA-256; no se ensayó una restauración completa."
+}

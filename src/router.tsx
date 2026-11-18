@@ -11,7 +11,12 @@ export const getRouter = () => {
         refetchOnWindowFocus: false,
         retry: (failureCount, error) => {
           const msg = error instanceof Error ? error.message.toLowerCase() : "";
-          if (msg.includes("jwt") || msg.includes("permission") || msg.includes("401") || msg.includes("403")) {
+          if (
+            msg.includes("jwt") ||
+            msg.includes("permission") ||
+            msg.includes("401") ||
+            msg.includes("403")
+          ) {
             return false;
           }
           return failureCount < 2;

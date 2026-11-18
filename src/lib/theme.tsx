@@ -33,23 +33,24 @@ function getSystemTheme(): "dark" | "light" {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "system";
+  // El primer render debe coincidir con el HTML del servidor. El script del
+  // documento ya aplica los colores antes de pintar; aquí sincronizamos los iconos.
+  const [theme, setThemeState] = useState<Theme>("system");
+  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("dark");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (saved === "dark" || saved === "light" || saved === "system") return saved;
+      if (saved === "dark" || saved === "light" || saved === "system") setThemeState(saved);
     } catch {
       /* ignore */
     }
-    return "system";
-  });
-
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">(() => {
-    if (typeof window === "undefined") return "dark";
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
+    setReady(true);
+  }, []);
 
   useEffect(() => {
+    if (!ready) return;
     const root = document.documentElement;
     const apply = (t: Theme) => {
       const resolved = t === "system" ? getSystemTheme() : t;
@@ -67,7 +68,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       mq.addEventListener("change", listener);
       return () => mq.removeEventListener("change", listener);
     }
-  }, [theme]);
+  }, [theme, ready]);
 
   const setTheme = (next: Theme) => {
     setThemeState(next);
@@ -93,7 +94,13 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-export function ThemeToggle({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function ThemeToggle({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const { theme, resolvedTheme, setTheme } = useTheme();
 
   return (

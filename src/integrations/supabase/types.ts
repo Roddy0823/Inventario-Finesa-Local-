@@ -411,6 +411,7 @@ export type Database = {
           empresa_id: string | null
           id: string
           identificacion: string
+          identificacion_normalizada: string
           nombre: string
           owner_id: string | null
           pin_bloqueo_hasta: string | null
@@ -429,6 +430,7 @@ export type Database = {
           empresa_id?: string | null
           id?: string
           identificacion: string
+          identificacion_normalizada?: never
           nombre: string
           owner_id?: string | null
           pin_bloqueo_hasta?: string | null
@@ -447,6 +449,7 @@ export type Database = {
           empresa_id?: string | null
           id?: string
           identificacion?: string
+          identificacion_normalizada?: never
           nombre?: string
           owner_id?: string | null
           pin_bloqueo_hasta?: string | null
@@ -1103,6 +1106,76 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      usuario_habilitado: {
+        Args: { p_user: string }
+        Returns: boolean
+      }
+      crear_pedido: {
+        Args: {
+          p_proveedor: string
+          p_lineas: Json
+          p_notas?: string | null
+          p_fecha_esperada?: string | null
+          p_estado?: string
+        }
+        Returns: string
+      }
+      crear_acta: {
+        Args: {
+          p_empleado: string
+          p_tipo: Database["public"]["Enums"]["acta_tipo"]
+          p_items: Json
+          p_observaciones?: string | null
+          p_es_prestamo?: boolean
+          p_prestamo_hasta?: string | null
+          p_reparacion_equipo?: string | null
+        }
+        Returns: string
+      }
+      crear_prestamo_contingencia: {
+        Args: {
+          p_equipo_reparacion: string
+          p_equipo_contingencia: string
+          p_motivo: string
+          p_hasta: string
+          p_proveedor?: string | null
+        }
+        Returns: string
+      }
+      reservar_firma: {
+        Args: { p_acta: string; p_actor: string | null; p_token?: string | null }
+        Returns: Json
+      }
+      confirmar_firma: {
+        Args: {
+          p_acta: string
+          p_lease: string
+          p_actor: string | null
+          p_firma_path: string
+          p_pdf_path: string
+          p_pdf_hash: string
+          p_medio: string
+          p_ip: string | null
+          p_user_agent: string | null
+        }
+        Returns: Json
+      }
+      cancelar_firma: {
+        Args: { p_acta: string; p_lease: string }
+        Returns: undefined
+      }
+      reservar_intento_pin: {
+        Args: { p_empleado: string }
+        Returns: Json
+      }
+      finalizar_intento_pin: {
+        Args: { p_empleado: string; p_lease: string; p_exito: boolean }
+        Returns: undefined
+      }
+      reemplazar_permisos_usuario: {
+        Args: { p_user: string; p_permisos: string[]; p_actor?: string | null }
+        Returns: undefined
+      }
       anular_acta: {
         Args: { p_acta: string; p_motivo: string }
         Returns: undefined
@@ -1237,6 +1310,10 @@ export type Database = {
         | "firmas_capturar"
         | "repositorio_ver"
         | "reportes_exportar"
+        | "reabastecimiento_gestionar"
+        | "proveedores_editar"
+        | "estadisticas_ver"
+        | "catalogos_editar"
       app_role: "admin" | "auxiliar" | "empleado"
       catalogo_tipo: "marca" | "tipo_equipo" | "sede" | "area" | "empresa"
       equipo_estado:
@@ -1383,6 +1460,10 @@ export const Constants = {
         "firmas_capturar",
         "repositorio_ver",
         "reportes_exportar",
+        "reabastecimiento_gestionar",
+        "proveedores_editar",
+        "estadisticas_ver",
+        "catalogos_editar",
       ],
       app_role: ["admin", "auxiliar", "empleado"],
       catalogo_tipo: ["marca", "tipo_equipo", "sede", "area", "empresa"],

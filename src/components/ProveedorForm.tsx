@@ -10,15 +10,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Building2, Check, CreditCard, Globe, Mail, MapPin, Phone, Smartphone, Tag, Trash2, Truck, UserCheck } from "lucide-react";
+import {
+  Building2,
+  Check,
+  CreditCard,
+  Globe,
+  Mail,
+  MapPin,
+  Phone,
+  Smartphone,
+  Tag,
+  Trash2,
+  Truck,
+  UserCheck,
+} from "lucide-react";
 
 const sel =
   "h-9 w-full rounded-lg border border-input bg-background/80 px-3 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 /** Crear / editar la ficha completa del proveedor. onSaved recibe el id. */
-export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose: () => void; onSaved?: (id: string) => void }) {
+export function FormProveedor({
+  p,
+  onClose,
+  onSaved,
+}: {
+  p: Prov | null;
+  onClose: () => void;
+  onSaved?: (id: string) => void;
+}) {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const [f, setF] = useState({
@@ -42,11 +69,14 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
   const t = (s: string) => s.trim() || null;
 
   async function guardar() {
-    if (!me?.can("proveedores_editar")) return toast.error("No tiene permiso para gestionar proveedores.");
+    if (!me?.can("proveedores_editar"))
+      return toast.error("No tiene permiso para gestionar proveedores.");
     if (!f.nombre.trim()) return toast.error("La razón social es obligatoria");
-    if (!f.telefono.trim() && !f.whatsapp.trim() && !f.asesor_telefono.trim()) return toast.error("Registre al menos un teléfono o celular");
+    if (!f.telefono.trim() && !f.whatsapp.trim() && !f.asesor_telefono.trim())
+      return toast.error("Registre al menos un teléfono o celular");
     const dias = f.dias_entrega ? Number(f.dias_entrega) : null;
-    if (dias !== null && (!Number.isInteger(dias) || dias < 0)) return toast.error("Días de entrega inválidos");
+    if (dias !== null && (!Number.isInteger(dias) || dias < 0))
+      return toast.error("Días de entrega inválidos");
     const webRaw = t(f.sitio_web);
     if (webRaw && !urlExternaSegura(webRaw)) {
       return toast.error("El sitio web debe ser una dirección HTTP o HTTPS válida");
@@ -85,8 +115,15 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
   }
 
   async function eliminar() {
-    if (!me?.can("proveedores_editar")) return toast.error("No tiene permiso para eliminar proveedores.");
-    if (!p || !confirm(`¿Eliminar el proveedor ${p.nombre}? Se quitarán sus vínculos con artículos. Si solo dejó de trabajar con él, márquelo como Inactivo.`)) return;
+    if (!me?.can("proveedores_editar"))
+      return toast.error("No tiene permiso para eliminar proveedores.");
+    if (
+      !p ||
+      !confirm(
+        `¿Eliminar el proveedor ${p.nombre}? Se quitarán sus vínculos con artículos. Si solo dejó de trabajar con él, márquelo como Inactivo.`,
+      )
+    )
+      return;
     const { error } = await supabase.from("proveedores").delete().eq("id", p.id);
     if (error) return toast.error(errMsg(error));
     toast.success("Proveedor eliminado");
@@ -117,7 +154,9 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
               </div>
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium">
-              <span className={`h-2 w-2 rounded-full ${activo ? "bg-success" : "bg-muted-foreground/50"}`} />
+              <span
+                className={`h-2 w-2 rounded-full ${activo ? "bg-success" : "bg-muted-foreground/50"}`}
+              />
               <span>{activo ? "Activo" : "Inactivo"}</span>
               <Switch checked={activo} onCheckedChange={setActivo} />
             </label>
@@ -191,7 +230,9 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
                 <UserCheck className="h-3.5 w-3.5 text-primary" />
                 Asesor comercial y canales de contacto
               </div>
-              <span className="text-[11px] text-muted-foreground">Al menos 1 teléfono requerido</span>
+              <span className="text-[11px] text-muted-foreground">
+                Al menos 1 teléfono requerido
+              </span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -273,7 +314,9 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
                     <span>{e}</span>
                     <span
                       className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                        sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background"
+                        sel
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background"
                       }`}
                     >
                       {sel && <Check className="h-2.5 w-2.5" />}
@@ -333,7 +376,11 @@ export function FormProveedor({ p, onClose, onSaved }: { p: Prov | null; onClose
 
         <DialogFooter className="gap-2 border-t border-border/60 bg-muted/20 px-6 py-3.5">
           {p && (
-            <Button variant="outline" className="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={eliminar}>
+            <Button
+              variant="outline"
+              className="mr-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={eliminar}
+            >
               <Trash2 className="mr-1.5 h-3.5 w-3.5" />
               Eliminar
             </Button>

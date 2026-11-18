@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Correcciones aplicadas · Finesa</title
+  ><style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f3f6fb;
+      --card: #fff;
+      --text: #182437;
+      --muted: #516278;
+      --line: #dbe3ed;
+      --ok: #087f61;
+      --accent: #1564b5;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font:
+        16px/1.55 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1120px;
+      margin: 50px auto;
+      padding: 0 24px 70px;
+    }
+    a {
+      color: var(--accent);
+    }
+    h1 {
+      font-size: clamp(30px, 5vw, 48px);
+      line-height: 1.1;
+      letter-spacing: -0.035em;
+      margin: 15px 0;
+    }
+    h2 {
+      font-size: 22px;
+      margin-top: 38px;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      font-size: 12px;
+    }
+    .lead {
+      max-width: 810px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 28px 0;
+    }
+    .card {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+    }
+    .card b {
+      display: block;
+      font-size: 29px;
+    }
+    .card span,
+    small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--line);
+    }
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      padding: 15px;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    td p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    td small {
+      display: block;
+    }
+    code {
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+    .note {
+      border-left: 4px solid var(--accent);
+      padding: 12px 18px;
+      background: var(--card);
+    }
+    .scroll {
+      overflow: auto;
+    }
+    footer {
+      margin-top: 30px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 700px) {
+      .cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      main {
+        margin-top: 28px;
+      }
+      th,
+      td {
+        padding: 10px;
+      }
+      td:last-child {
+        font-size: 12px;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101825;
+        --card: #192435;
+        --text: #e8eef6;
+        --muted: #a7b9ce;
+        --line: #31435a;
+        --ok: #60dab2;
+        --accent: #8bc3ff;
+      }
+    }
+  </style>
+  <main>
+    <div class="eyebrow">FINESA · 18 NOVIEMBRE 2026</div>
+    <h1>Correcciones aplicadas</h1>
+    <p class="lead">
+      Los 26 hallazgos del análisis tienen cambios implementados. La migración está aplicada y la
+      aplicación local fue recompilada y puesta en marcha.
+    </p>
+    <p>
+      <a href="http://localhost:8080">Abrir aplicación</a> ·
+      <a href="analisis-proyecto-2026-11-11.html">Consultar análisis original</a>
+    </p>
+    <div class="cards">
+      <div class="card"><b>225</b><span>Pruebas de aplicación y SQL aprobadas</span></div>
+      <div class="card"><b>8</b><span>Pruebas del entorno aprobadas</span></div>
+      <div class="card"><b>0</b><span>Errores de lint y de TypeScript</span></div>
+      <div class="card"><b class="ok">Activa</b><span>Compilación local verificada</span></div>
+    </div>
+    <h2>Datos conservados</h2>
+    <p>
+      Se comprobaron antes y después:
+      <strong
+        >439 empleados, 1.663 equipos, 7 actas, 8 líneas de acta, 1 pedido, 3 usuarios y 28 objetos
+        de almacenamiento</strong
+      >. El registro de migraciones pasó de 4 a 5. Las cuatro migraciones originales se conservaron.
+    </p>
+    <p class="note">
+      La migración se ensayó dentro de una transacción revertida antes de aplicarse. El respaldo
+      físico de hoy incluye los volúmenes y la configuración de la instalación.
+    </p>
+    <details>
+      <summary>Ubicación del respaldo</summary>
+      <p><code>FinesaInventario/backups/2026-11-18T19-42-41-049Z</code></p>
+    </details>
+    <h2>Detalle de las correcciones</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Hallazgo y solución implementada</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01<small>P1</small></td>
+            <td>
+              <strong>Vite y Rolldown vulnerables si se expone el servidor de desarrollo</strong>
+              <p>
+                Vite 8.3.7, Rolldown 1.2.19 y servidor de desarrollo restringido al equipo local.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>02<small>P1</small></td>
+            <td>
+              <strong>El vínculo editable empleado–usuario permite suplantar al receptor</strong>
+              <p>
+                Columnas de identidad y PIN protegidas; validación del rol y del vínculo del
+                receptor.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>03<small>P1</small></td>
+            <td>
+              <strong>La firma no es idempotente y puede sobrescribir el PDF definitivo</strong>
+              <p>
+                Reserva de firma, rutas únicas sin sobrescritura, confirmación atómica y
+                recuperación idempotente.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>04<small>P1</small></td>
+            <td>
+              <strong>La firma aplica movimientos sin revalidar la situación actual</strong>
+              <p>
+                Bloqueo y revalidación del empleado, equipos y estado del documento antes de
+                confirmar.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>05<small>P1</small></td>
+            <td>
+              <strong>RPC y referencias de actas permiten cruzar ecosistemas</strong>
+              <p>
+                Validación del propietario en RPC y referencias de equipos, actas, catálogos y
+                proveedores.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>06<small>P1</small></td>
+            <td>
+              <strong>La recuperación por correo interno puede tomar una cuenta de personal</strong>
+              <p>
+                Rechazo de colisiones de correo y del dominio reservado para empleados al crear
+                personal.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>07<small>P1</small></td>
+            <td>
+              <strong>El contador de PIN pierde intentos concurrentes</strong>
+              <p>
+                Reserva transaccional de intentos de PIN y bloqueo de 15 minutos al alcanzar cinco
+                intentos.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>08<small>P1</small></td>
+            <td>
+              <strong>La carga masiva conserva datos al cambiar de usuario</strong>
+              <p>
+                Carga vinculada a la identidad, cancelación de peticiones y rechazo de resultados de
+                sesiones anteriores.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>09<small>P1</small></td>
+            <td>
+              <strong>Una firma cancelada puede enviarse con el lienzo vacío</strong>
+              <p>Limpieza del lienzo y del valor de la firma al cancelar o reiniciar.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>10<small>P2</small></td>
+            <td>
+              <strong>El PDF de actas pierde contenido al crecer</strong>
+              <p>
+                PDF con paginación, ajuste de líneas y conservación de textos largos, incluidas las
+                etiquetas de firma.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>11<small>P2</small></td>
+            <td>
+              <strong>Cédulas con separadores pueden quedar sin acceso</strong>
+              <p>
+                Identificación normalizada, indexada y única; consulta exacta al autenticar
+                empleados.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>12<small>P2</small></td>
+            <td>
+              <strong>La paginación de actas cambia la URL pero no las filas</strong>
+              <p>Rango consultado y controles de paginación sincronizados con la URL.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>13<small>P2</small></td>
+            <td>
+              <strong>Las actas de cambio se contabilizan como devoluciones completas</strong>
+              <p>Cómputo de movimientos según la dirección de cada línea de las actas de cambio.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>14<small>P2</small></td>
+            <td>
+              <strong>La recepción acepta cantidades negativas y supera lo pedido</strong>
+              <p>
+                Validación de cantidades, precios y límites de recepción en interfaz y base de
+                datos.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>15<small>P2</small></td>
+            <td>
+              <strong>Suspender el perfil no corta todas las lecturas directas</strong>
+              <p>Políticas restrictivas para cuentas suspendidas y empleados inactivos.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>16<small>P2</small></td>
+            <td>
+              <strong>Un cambio admite líneas sin dirección y se firma sin movimiento</strong>
+              <p>Dirección obligatoria y validación de cada línea de cambio antes de firmar.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>17<small>P2</small></td>
+            <td>
+              <strong>El token se consume antes de completar una firma recuperable</strong>
+              <p>Consumo del token dentro de la confirmación final de la firma.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>18<small>P2</small></td>
+            <td>
+              <strong>Varias operaciones críticas ignoran errores y reportan éxito</strong>
+              <p>
+                Propagación de errores de consultas, escrituras y auditoría; eliminación de
+                confirmaciones falsas.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>19<small>P2</small></td>
+            <td>
+              <strong>Un PNG pequeño puede declarar dimensiones desmesuradas</strong>
+              <p>
+                Validación de estructura PNG, CRC, dimensiones, píxeles y descompresión limitada.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>20<small>P2</small></td>
+            <td>
+              <strong>Pedidos y préstamos pueden quedar parcialmente creados</strong>
+              <p>
+                Creación transaccional de pedidos, actas y préstamos de contingencia mediante RPC.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>21<small>P2</small></td>
+            <td>
+              <strong>Exportaciones e historiales pueden truncarse sin aviso</strong>
+              <p>
+                Paginación completa de exportaciones e historiales y fragmentación de consultas por
+                IDs.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>22<small>P2</small></td>
+            <td>
+              <strong>La firma remota no invalida el detalle abierto</strong>
+              <p>
+                Invalidación de las claves de caché correspondientes al detalle del acta firmada.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>23<small>P1</small></td>
+            <td>
+              <strong>La ruta de firma del técnico procede de un dato controlable</strong>
+              <p>
+                Copia de firma técnica desde el perfil en servidor a una ruta única; conservación
+                ante respuestas inciertas.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>24<small>P2</small></td>
+            <td>
+              <strong>El lint no constituye hoy una barrera de calidad útil</strong>
+              <p>
+                Formato uniforme, exclusión de archivos generados, controles de tipos, lint y CI.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>25<small>P2</small></td>
+            <td>
+              <strong>Cambiar la carpeta de configuración no aísla los datos Docker</strong>
+              <p>
+                Comprobación de identidad de la instalación Docker antes de preparar o iniciar;
+                respaldo con configuración original.
+              </p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+          <tr>
+            <td>26<small>P2</small></td>
+            <td>
+              <strong>La importación utiliza una versión de XLSX con avisos de seguridad</strong>
+              <p>SheetJS actualizado al paquete oficial 0.20.3 y lockfile renovado.</p>
+            </td>
+            <td class="ok">Implementado</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h2>Verificación y alcance</h2>
+    <p>
+      Suite principal: 224 pruebas aprobadas; regresión final de tema: 1 aprobada; scripts de
+      entorno: 8 aprobadas. TypeScript, lint y compilación terminaron correctamente. Permanecen 17
+      advertencias de Fast Refresh sobre exportaciones compartidas.
+    </p>
+    <p>
+      Auth, lecturas con RLS, carga/descarga/eliminación de archivo temporal y HTTP 200 verificados.
+      Pantalla de ingreso renderizada; sin errores de consola en la versión final. Corregida la
+      discrepancia de tema entre el HTML inicial del servidor y la hidratación del navegador.
+    </p>
+    <p>
+      Las operaciones de firma, suspensión y movimientos de inventario se comprobaron con pruebas
+      aisladas. La comprobación de navegador cubre el acceso; no constituye un recorrido manual de
+      todos los módulos. El respaldo se verificó mediante lectura de archivos y SHA-256; no se
+      ensayó una restauración completa.
+    </p>
+    <footer>
+      Los cambios están en el árbol de trabajo local. Evidencia estructurada:
+      <a href="correcciones-proyecto-2026-11-18.json">registro JSON</a>.
+    </footer>
+  </main>
+</html>

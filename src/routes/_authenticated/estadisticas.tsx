@@ -1,3 +1,4 @@
+import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -103,12 +104,19 @@ type Av = {
   por_cargo: N[];
   por_area: N[];
   por_sede_emp: N[];
-  movimientos: { mes: string; entregas: number; devoluciones: number; ingresos: number; acumulado: number }[];
+  movimientos: {
+    mes: string;
+    entregas: number;
+    devoluciones: number;
+    ingresos: number;
+    acumulado: number;
+  }[];
   stock: { nombre: string; disponibles: number; minimo: number }[];
   garantias: { d30: number; d60: number; d90: number };
 };
 
-const cop = (n: number | null | undefined) => `$${Math.round(Number(n ?? 0)).toLocaleString("es-CO")}`;
+const cop = (n: number | null | undefined) =>
+  `$${Math.round(Number(n ?? 0)).toLocaleString("es-CO")}`;
 const copCompact = (n: number | null | undefined) => {
   const v = Number(n ?? 0);
   if (v >= 1_000_000_000) return `$${(v / 1_000_000_000).toFixed(1)}B`;
@@ -166,11 +174,10 @@ function Estadisticas() {
     queryKey: ["estadisticas_avanzadas", sede, tipo],
     enabled: !!me?.isStaff,
     placeholderData: keepPreviousData,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("estadisticas_avanzadas", args);
+      const { data, error } = await supabase.rpc("estadisticas_avanzadas", args);
       if (error) throw error;
-      return data as Av;
+      return data as unknown as Av;
     },
   });
 
@@ -185,7 +192,11 @@ function Estadisticas() {
     const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     const add = (rows: object[], n: string) =>
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ "": "Sin datos" }]), n);
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(rows.length ? rows : [{ "": "Sin datos" }]),
+        n,
+      );
     add(
       [
         { Indicador: "Total equipos", Valor: s.total },
@@ -196,8 +207,14 @@ function Estadisticas() {
         { Indicador: "Tasa de falla 30 días (%)", Valor: kpi.falla },
         { Indicador: "Efectividad de firmas (%)", Valor: kpi.firmas },
         { Indicador: "Horas promedio para firmar", Valor: a.horas_firma ?? "" },
-        ...Object.entries(s.por_estado).map(([k, n]) => ({ Indicador: `Equipos ${etiquetaEstado(k)}`, Valor: n })),
-        ...Object.entries(s.valor_por_estado).map(([k, n]) => ({ Indicador: `Valor ${etiquetaEstado(k)}`, Valor: n })),
+        ...Object.entries(s.por_estado).map(([k, n]) => ({
+          Indicador: `Equipos ${etiquetaEstado(k)}`,
+          Valor: n,
+        })),
+        ...Object.entries(s.valor_por_estado).map(([k, n]) => ({
+          Indicador: `Valor ${etiquetaEstado(k)}`,
+          Valor: n,
+        })),
       ],
       "Resumen",
     );
@@ -233,11 +250,19 @@ function Estadisticas() {
       "Movimientos",
     );
     add(
-      a.fallas_marca.map((m) => ({ Marca: m.nombre, Reparaciones: m.reparaciones, Bajas: m.bajas })),
+      a.fallas_marca.map((m) => ({
+        Marca: m.nombre,
+        Reparaciones: m.reparaciones,
+        Bajas: m.bajas,
+      })),
       "Fallas por marca",
     );
     add(
-      a.fallas_modelo.map((m) => ({ Modelo: m.nombre, Reparaciones: m.reparaciones, Bajas: m.bajas })),
+      a.fallas_modelo.map((m) => ({
+        Modelo: m.nombre,
+        Reparaciones: m.reparaciones,
+        Bajas: m.bajas,
+      })),
       "Fallas por modelo",
     );
     add(
@@ -256,7 +281,7 @@ function Estadisticas() {
       s.top_proveedores.map((t) => ({ Proveedor: t.nombre, Equipos: t.cantidad, Valor: t.valor })),
       "Proveedores",
     );
-    XLSX.writeFile(wb, `estadisticas-inventario-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `estadisticas-inventario-${hoyColombia()}.xlsx`);
   }
 
   const operativos = s ? s.total - (s.por_estado.de_baja ?? 0) : 0;
@@ -296,7 +321,12 @@ function Estadisticas() {
         desc="Analítica ejecutiva sobre utilización del parque tecnológico, valoración patrimonial, calidad y abastecimiento."
       >
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <select className={sel} value={sede} onChange={(e) => setSede(e.target.value)} aria-label="Filtrar por sede">
+          <select
+            className={sel}
+            value={sede}
+            onChange={(e) => setSede(e.target.value)}
+            aria-label="Filtrar por sede"
+          >
             <option value="">Todas las sedes</option>
             {cat.byTipo("sede").map((c) => (
               <option key={c.id} value={c.id}>
@@ -335,7 +365,13 @@ function Estadisticas() {
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Excel
           </Button>
-          <Button variant="outline" size="sm" className="h-9" onClick={() => window.print()} disabled={!s}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => window.print()}
+            disabled={!s}
+          >
             <FileText className="mr-1.5 h-3.5 w-3.5" />
             PDF
           </Button>
@@ -483,8 +519,12 @@ function Estadisticas() {
                 <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs lg:col-span-5">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground">Composición por estado operativo</h3>
-                      <p className="text-xs text-muted-foreground">Unidades y capital distribuido por estado</p>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Composición por estado operativo
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Unidades y capital distribuido por estado
+                      </p>
                     </div>
                   </div>
                   <div className="grid items-center gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -500,18 +540,34 @@ function Estadisticas() {
                             paddingAngle={2}
                           >
                             {estados.map((e) => (
-                              <Cell key={e.key} fill={C[e.key] ?? COLORES[0]} stroke="transparent" />
+                              <Cell
+                                key={e.key}
+                                fill={C[e.key] ?? COLORES[0]}
+                                stroke="transparent"
+                              />
                             ))}
                             <RLabel
                               position="center"
                               content={({ viewBox }) => {
                                 const vb = viewBox as { cx: number; cy: number };
                                 return (
-                                  <text x={vb.cx} y={vb.cy} textAnchor="middle" dominantBaseline="middle">
-                                    <tspan x={vb.cx} className="fill-foreground font-mono text-2xl font-bold">
+                                  <text
+                                    x={vb.cx}
+                                    y={vb.cy}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                  >
+                                    <tspan
+                                      x={vb.cx}
+                                      className="fill-foreground font-mono text-2xl font-bold"
+                                    >
                                       {s.total.toLocaleString("es-CO")}
                                     </tspan>
-                                    <tspan x={vb.cx} dy={18} className="fill-muted-foreground text-[11px]">
+                                    <tspan
+                                      x={vb.cx}
+                                      dy={18}
+                                      className="fill-muted-foreground text-[11px]"
+                                    >
                                       equipos
                                     </tspan>
                                   </text>
@@ -541,10 +597,15 @@ function Estadisticas() {
                             </div>
                             <div className="text-right">
                               <div className="font-mono font-semibold text-foreground">
-                                {e.cantidad} <span className="text-[10px] font-normal text-muted-foreground">({share}%)</span>
+                                {e.cantidad}{" "}
+                                <span className="text-[10px] font-normal text-muted-foreground">
+                                  ({share}%)
+                                </span>
                               </div>
                               {e.valor > 0 && (
-                                <div className="font-mono text-[10px] text-muted-foreground">{copCompact(e.valor)}</div>
+                                <div className="font-mono text-[10px] text-muted-foreground">
+                                  {copCompact(e.valor)}
+                                </div>
                               )}
                             </div>
                           </li>
@@ -558,7 +619,9 @@ function Estadisticas() {
                 <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs lg:col-span-7">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground">Disponibilidad vs. Asignación por tipo</h3>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Disponibilidad vs. Asignación por tipo
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         Comparativa del estado operativo en cada categoría de hardware
                       </p>
@@ -566,8 +629,15 @@ function Estadisticas() {
                   </div>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={a.por_tipo_estado} margin={{ top: 8, right: 8, left: -12, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <BarChart
+                        data={a.por_tipo_estado}
+                        margin={{ top: 8, right: 8, left: -12, bottom: 20 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="var(--border)"
+                          vertical={false}
+                        />
                         <XAxis
                           dataKey="nombre"
                           fontSize={11}
@@ -577,19 +647,25 @@ function Estadisticas() {
                           textAnchor="end"
                           height={55}
                         />
-                        <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                        <YAxis
+                          fontSize={11}
+                          tick={{ fill: "var(--muted-foreground)" }}
+                          allowDecimals={false}
+                        />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 11 }} />
-                        {(["disponible", "asignado", "en_reparacion", "de_baja"] as const).map((k, idx) => (
-                          <Bar
-                            key={k}
-                            dataKey={k}
-                            stackId="a"
-                            name={etiquetaEstado(k)}
-                            fill={C[k]}
-                            radius={idx === 3 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                          />
-                        ))}
+                        {(["disponible", "asignado", "en_reparacion", "de_baja"] as const).map(
+                          (k, idx) => (
+                            <Bar
+                              key={k}
+                              dataKey={k}
+                              stackId="a"
+                              name={etiquetaEstado(k)}
+                              fill={C[k]}
+                              radius={idx === 3 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                            />
+                          ),
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -600,7 +676,9 @@ function Estadisticas() {
               <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-2xs">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Concentración de valor patrimonial</h3>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Concentración de valor patrimonial
+                    </h3>
                     <p className="text-xs text-muted-foreground">
                       Distribución financiera del inventario según categoría, fabricante o sede
                     </p>
@@ -632,7 +710,11 @@ function Estadisticas() {
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={serieValor} margin={{ top: 8, right: 12, left: 4, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--border)"
+                        vertical={false}
+                      />
                       <XAxis
                         dataKey="nombre"
                         fontSize={11}
@@ -648,7 +730,12 @@ function Estadisticas() {
                         tickFormatter={(v) => copCompact(Number(v))}
                       />
                       <Tooltip content={<CustomTooltip isCurrency />} />
-                      <Bar dataKey="valor" name="Valor total" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+                      <Bar
+                        dataKey="valor"
+                        name="Valor total"
+                        fill="var(--primary)"
+                        radius={[6, 6, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -658,7 +745,9 @@ function Estadisticas() {
               <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xs">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 bg-muted/20 px-5 py-3.5">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Matriz ejecutiva por categoría</h3>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Matriz ejecutiva por categoría
+                    </h3>
                     <p className="text-xs text-muted-foreground">
                       Desglose de unidades, tasa de uso, costo unitario promedio y valoración total
                     </p>
@@ -685,12 +774,24 @@ function Estadisticas() {
                         const u = op > 0 ? Math.round((t.asignados / op) * 100) : 0;
                         return (
                           <tr key={t.nombre} className="transition-colors hover:bg-muted/30">
-                            <td className="px-4 py-2.5 font-semibold text-foreground">{t.nombre}</td>
-                            <td className="px-4 py-2.5 text-right font-mono font-medium">{t.cantidad}</td>
-                            <td className="px-4 py-2.5 text-right font-mono text-success">{t.disponibles}</td>
-                            <td className="px-4 py-2.5 text-right font-mono text-primary">{t.asignados}</td>
-                            <td className="px-4 py-2.5 text-right font-mono text-warning">{t.en_reparacion}</td>
-                            <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">{t.de_baja}</td>
+                            <td className="px-4 py-2.5 font-semibold text-foreground">
+                              {t.nombre}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono font-medium">
+                              {t.cantidad}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-success">
+                              {t.disponibles}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-primary">
+                              {t.asignados}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-warning">
+                              {t.en_reparacion}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-muted-foreground">
+                              {t.de_baja}
+                            </td>
                             <td className="w-36 px-4 py-2.5">
                               <div className="flex items-center gap-2">
                                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
@@ -721,18 +822,32 @@ function Estadisticas() {
               <div className="grid gap-3.5 sm:grid-cols-3">
                 <div className="rounded-xl border border-border/80 bg-card p-4">
                   <div className="text-xs text-muted-foreground">Entregas firmadas (12 meses)</div>
-                  <div className="mt-1 font-mono text-2xl font-bold text-primary">{totEntregas12m}</div>
-                  <div className="text-[11px] text-muted-foreground">Equipos entregados a colaboradores</div>
+                  <div className="mt-1 font-mono text-2xl font-bold text-primary">
+                    {totEntregas12m}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Equipos entregados a colaboradores
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border/80 bg-card p-4">
-                  <div className="text-xs text-muted-foreground">Devoluciones firmadas (12 meses)</div>
-                  <div className="mt-1 font-mono text-2xl font-bold text-warning">{totDevoluciones12m}</div>
-                  <div className="text-[11px] text-muted-foreground">Equipos reintegrados al almacén</div>
+                  <div className="text-xs text-muted-foreground">
+                    Devoluciones firmadas (12 meses)
+                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold text-warning">
+                    {totDevoluciones12m}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Equipos reintegrados al almacén
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border/80 bg-card p-4">
                   <div className="text-xs text-muted-foreground">Nuevos ingresos (12 meses)</div>
-                  <div className="mt-1 font-mono text-2xl font-bold text-success">+{totIngresos12m}</div>
-                  <div className="text-[11px] text-muted-foreground">Adquisiciones sumadas al inventario</div>
+                  <div className="mt-1 font-mono text-2xl font-bold text-success">
+                    +{totIngresos12m}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Adquisiciones sumadas al inventario
+                  </div>
                 </div>
               </div>
 
@@ -741,7 +856,10 @@ function Estadisticas() {
                   titulo="Dinámica de entregas y devoluciones (12 meses)"
                   sub="Flujo mensual de actas perfeccionadas"
                 >
-                  <AreaChart data={a.movimientos} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
+                  <AreaChart
+                    data={a.movimientos}
+                    margin={{ top: 10, right: 12, left: -12, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="gradEntregas" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
@@ -754,7 +872,11 @@ function Estadisticas() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="mes" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-                    <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                    <YAxis
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Area
@@ -780,7 +902,10 @@ function Estadisticas() {
                   titulo="Evolución y crecimiento del parque tecnológico"
                   sub="Inventario acumulado frente a ingresos mensuales"
                 >
-                  <AreaChart data={a.movimientos} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
+                  <AreaChart
+                    data={a.movimientos}
+                    margin={{ top: 10, right: 12, left: -12, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="gradAcum" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="var(--success, #10b981)" stopOpacity={0.3} />
@@ -789,7 +914,11 @@ function Estadisticas() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                     <XAxis dataKey="mes" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-                    <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                    <YAxis
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Area
@@ -816,7 +945,13 @@ function Estadisticas() {
               <Tabla
                 titulo="Detalle histórico mensual (12 meses)"
                 cols={["Mes", "Entregas", "Devoluciones", "Ingresos nuevos", "Parque acumulado"]}
-                filas={a.movimientos.map((m) => [m.mes, m.entregas, m.devoluciones, `+${m.ingresos}`, m.acumulado])}
+                filas={a.movimientos.map((m) => [
+                  m.mes,
+                  m.entregas,
+                  m.devoluciones,
+                  `+${m.ingresos}`,
+                  m.acumulado,
+                ])}
               />
             </TabsContent>
 
@@ -827,9 +962,22 @@ function Estadisticas() {
                   titulo="Siniestralidad por marca (Reparaciones y Bajas)"
                   sub="Fabricantes con mayor volumen de incidencias técnicas"
                 >
-                  <BarChart data={a.fallas_marca} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                    <XAxis type="number" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                  <BarChart
+                    data={a.fallas_marca}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <YAxis
                       type="category"
                       dataKey="nombre"
@@ -839,8 +987,19 @@ function Estadisticas() {
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="reparaciones" name="Reparaciones" stackId="f" fill={C.en_reparacion} />
-                    <Bar dataKey="bajas" name="Bajas" stackId="f" fill={C.de_baja} radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="reparaciones"
+                      name="Reparaciones"
+                      stackId="f"
+                      fill={C.en_reparacion}
+                    />
+                    <Bar
+                      dataKey="bajas"
+                      name="Bajas"
+                      stackId="f"
+                      fill={C.de_baja}
+                      radius={[0, 4, 4, 0]}
+                    />
                   </BarChart>
                 </Grafico>
 
@@ -848,9 +1007,22 @@ function Estadisticas() {
                   titulo="Modelos con mayor índice de falla"
                   sub="Referencias específicas que concentran mantenimientos"
                 >
-                  <BarChart data={a.fallas_modelo} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                    <XAxis type="number" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                  <BarChart
+                    data={a.fallas_modelo}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                      horizontal={false}
+                    />
+                    <XAxis
+                      type="number"
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <YAxis
                       type="category"
                       dataKey="nombre"
@@ -860,8 +1032,19 @@ function Estadisticas() {
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="reparaciones" name="Reparaciones" stackId="f" fill={C.en_reparacion} />
-                    <Bar dataKey="bajas" name="Bajas" stackId="f" fill={C.de_baja} radius={[0, 4, 4, 0]} />
+                    <Bar
+                      dataKey="reparaciones"
+                      name="Reparaciones"
+                      stackId="f"
+                      fill={C.en_reparacion}
+                    />
+                    <Bar
+                      dataKey="bajas"
+                      name="Bajas"
+                      stackId="f"
+                      fill={C.de_baja}
+                      radius={[0, 4, 4, 0]}
+                    />
                   </BarChart>
                 </Grafico>
               </div>
@@ -880,17 +1063,35 @@ function Estadisticas() {
                     margin={{ top: 8, right: 12, left: -12, bottom: 4 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="nombre" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} />
-                    <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                    <XAxis
+                      dataKey="nombre"
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                    />
+                    <YAxis
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="cantidad" name="Equipos por vencer" fill="var(--warning, #f59e0b)" radius={[6, 6, 0, 0]} />
+                    <Bar
+                      dataKey="cantidad"
+                      name="Equipos por vencer"
+                      fill="var(--warning, #f59e0b)"
+                      radius={[6, 6, 0, 0]}
+                    />
                   </BarChart>
                 </Grafico>
 
                 <Tabla
                   titulo="Detalle de fallas por marca"
                   cols={["Marca", "En reparación", "Dados de baja", "Total incidencias"]}
-                  filas={a.fallas_marca.map((m) => [m.nombre, m.reparaciones, m.bajas, m.reparaciones + m.bajas])}
+                  filas={a.fallas_marca.map((m) => [
+                    m.nombre,
+                    m.reparaciones,
+                    m.bajas,
+                    m.reparaciones + m.bajas,
+                  ])}
                   vacio="Sin reparaciones ni bajas registradas."
                 />
               </div>
@@ -900,9 +1101,12 @@ function Estadisticas() {
             <TabsContent value="empleados" className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Distribución organizacional de equipos</h3>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Distribución organizacional de equipos
+                  </h3>
                   <p className="text-xs text-muted-foreground">
-                    Analiza cómo están repartidos los activos asignados según cargo, área o sede del colaborador
+                    Analiza cómo están repartidos los activos asignados según cargo, área o sede del
+                    colaborador
                   </p>
                 </div>
                 <div className="inline-flex rounded-xl border border-border/80 bg-muted/30 p-1">
@@ -932,9 +1136,22 @@ function Estadisticas() {
               <div className="grid gap-5 lg:grid-cols-12">
                 <div className="lg:col-span-7">
                   <Grafico titulo="Volumen de equipos asignados" alto="h-96">
-                    <BarChart data={grupos} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                      <XAxis type="number" fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                    <BarChart
+                      data={grupos}
+                      layout="vertical"
+                      margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--border)"
+                        horizontal={false}
+                      />
+                      <XAxis
+                        type="number"
+                        fontSize={11}
+                        tick={{ fill: "var(--muted-foreground)" }}
+                        allowDecimals={false}
+                      />
                       <YAxis
                         type="category"
                         dataKey="nombre"
@@ -943,7 +1160,12 @@ function Estadisticas() {
                         tick={{ fill: "var(--foreground)" }}
                       />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="cantidad" name="Equipos asignados" fill="var(--primary)" radius={[0, 6, 6, 0]} />
+                      <Bar
+                        dataKey="cantidad"
+                        name="Equipos asignados"
+                        fill="var(--primary)"
+                        radius={[0, 6, 6, 0]}
+                      />
                     </BarChart>
                   </Grafico>
                 </div>
@@ -981,11 +1203,25 @@ function Estadisticas() {
                       textAnchor="end"
                       height={55}
                     />
-                    <YAxis fontSize={11} tick={{ fill: "var(--muted-foreground)" }} allowDecimals={false} />
+                    <YAxis
+                      fontSize={11}
+                      tick={{ fill: "var(--muted-foreground)" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="disponibles" name="Disponibles" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="minimo" name="Stock mínimo" fill={C.de_baja} radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="disponibles"
+                      name="Disponibles"
+                      fill="var(--primary)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="minimo"
+                      name="Stock mínimo"
+                      fill={C.de_baja}
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </Grafico>
 
@@ -998,7 +1234,11 @@ function Estadisticas() {
                     layout="vertical"
                     margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                      horizontal={false}
+                    />
                     <XAxis
                       type="number"
                       fontSize={11}
@@ -1013,7 +1253,12 @@ function Estadisticas() {
                       tick={{ fill: "var(--foreground)" }}
                     />
                     <Tooltip content={<CustomTooltip isCurrency />} />
-                    <Bar dataKey="valor" name="Inversión total" fill="var(--success, #10b981)" radius={[0, 6, 6, 0]} />
+                    <Bar
+                      dataKey="valor"
+                      name="Inversión total"
+                      fill="var(--success, #10b981)"
+                      radius={[0, 6, 6, 0]}
+                    />
                   </BarChart>
                 </Grafico>
               </div>
@@ -1035,7 +1280,9 @@ function Estadisticas() {
                 <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xs">
                   <div className="flex items-center justify-between border-b border-border/70 bg-muted/20 px-5 py-3.5">
                     <div>
-                      <h3 className="text-sm font-semibold text-foreground">Alertas de reabastecimiento activas</h3>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Alertas de reabastecimiento activas
+                      </h3>
                       <p className="text-xs text-muted-foreground">
                         {(pedidosCamino.data?.length ?? 0) > 0
                           ? `${pedidosCamino.data!.length} pedido(s) en camino hacia el almacén`
@@ -1054,8 +1301,9 @@ function Estadisticas() {
                           <div>
                             <div className="font-semibold text-foreground">{x.tipo}</div>
                             <div className="text-muted-foreground">
-                              Disponibles: <b className="font-mono text-destructive">{x.disponibles}</b> · Mínimo:{" "}
-                              <b className="font-mono text-foreground">{x.stock_minimo}</b>
+                              Disponibles:{" "}
+                              <b className="font-mono text-destructive">{x.disponibles}</b> ·
+                              Mínimo: <b className="font-mono text-foreground">{x.stock_minimo}</b>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1180,7 +1428,9 @@ function KpiCard({
             <Icon className="h-3.5 w-3.5 text-primary" />
             {label}
           </span>
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cfg.badge}`}>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${cfg.badge}`}
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
             {cfg.txt}
           </span>
@@ -1204,7 +1454,10 @@ function KpiCard({
 
       {progress !== undefined && (
         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div className={`h-full transition-all duration-500 ${cfg.bar}`} style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+          <div
+            className={`h-full transition-all duration-500 ${cfg.bar}`}
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
         </div>
       )}
     </div>
@@ -1240,7 +1493,9 @@ function MetricCard({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <Icon className={`h-3.5 w-3.5 ${destacado ? "text-primary" : alerta ? "text-warning" : "text-muted-foreground"}`} />
+          <Icon
+            className={`h-3.5 w-3.5 ${destacado ? "text-primary" : alerta ? "text-warning" : "text-muted-foreground"}`}
+          />
           {label}
         </span>
         {badge && (
@@ -1249,7 +1504,9 @@ function MetricCard({
           </span>
         )}
       </div>
-      <div className="mt-2.5 font-display text-2xl font-bold tracking-tight text-foreground">{v}</div>
+      <div className="mt-2.5 font-display text-2xl font-bold tracking-tight text-foreground">
+        {v}
+      </div>
       {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
@@ -1315,7 +1572,9 @@ function Tabla({
                   <td
                     key={j}
                     className={`px-4 py-2.5 ${
-                      j ? "text-right font-mono tabular-nums text-foreground" : "font-medium text-foreground"
+                      j
+                        ? "text-right font-mono tabular-nums text-foreground"
+                        : "font-medium text-foreground"
                     }`}
                   >
                     {c}

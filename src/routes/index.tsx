@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -34,9 +34,15 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Ingresar — Finesa Inventario y Actas" },
-      { name: "description", content: "Acceso al sistema de inventario de equipos y actas digitales de Finesa S.A." },
+      {
+        name: "description",
+        content: "Acceso al sistema de inventario de equipos y actas digitales de Finesa S.A.",
+      },
       { property: "og:title", content: "Ingresar — Finesa Inventario y Actas" },
-      { property: "og:description", content: "Acceso al sistema de inventario de equipos y actas digitales de Finesa S.A." },
+      {
+        property: "og:description",
+        content: "Acceso al sistema de inventario de equipos y actas digitales de Finesa S.A.",
+      },
     ],
   }),
   component: Login,
@@ -64,9 +70,9 @@ function Login() {
   const [pin, setPin] = useState("");
 
   const ingresar = useServerFn(ingresoEmpleado);
-  const irDestino = () => {
+  const irDestino = useCallback(() => {
     nav({ to: "/panel", replace: true });
-  };
+  }, [nav]);
 
   useEffect(() => {
     if (!portalActivo && modo === "empleado") {
@@ -99,15 +105,20 @@ function Login() {
   }
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (!error && data.user) {
-        registrarActividadGlobal();
-        irDestino();
-      } else {
-        limpiarActividadGlobal();
-      }
-    }).catch(() => { /* Permitir reintentar el ingreso ante fallos de red. */ });
-  }, [nav]);
+    supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (!error && data.user) {
+          registrarActividadGlobal();
+          irDestino();
+        } else {
+          limpiarActividadGlobal();
+        }
+      })
+      .catch(() => {
+        /* Permitir reintentar el ingreso ante fallos de red. */
+      });
+  }, [irDestino]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,11 +126,18 @@ function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setLoading(false);
-      toast.error(error.message.includes("banned") ? "Su cuenta está suspendida." : "Correo o contraseña incorrectos.");
+      toast.error(
+        error.message.includes("banned")
+          ? "Su cuenta está suspendida."
+          : "Correo o contraseña incorrectos.",
+      );
       return;
     }
     registrarActividadGlobal();
-    await supabase.rpc("log_evento", { p_accion: "LOGIN", p_detalle: "Inicio de sesión mesa de soporte" });
+    await supabase.rpc("log_evento", {
+      p_accion: "LOGIN",
+      p_detalle: "Inicio de sesión mesa de soporte",
+    });
     qc.removeQueries({ queryKey: ["me"] });
     irDestino();
   }
@@ -299,9 +317,7 @@ function Login() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Contraseña
-                </label>
+                <label className="text-xs font-medium text-muted-foreground">Contraseña</label>
                 <Link to="/recuperar" className="text-[11px] text-primary hover:underline">
                   ¿Olvidó su clave?
                 </Link>
@@ -324,7 +340,11 @@ function Login() {
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                   title={mostrarPassword ? "Ocultar contraseña" : "Ver contraseña"}
                 >
-                  {mostrarPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {mostrarPassword ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -353,4 +373,3 @@ function Login() {
     </main>
   );
 }
-

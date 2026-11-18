@@ -1,6 +1,13 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { fetchAll, fetchByIds } from "@/lib/fetchAll";
+import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import {
+  DataTablePagination,
+  FilasSkeleton,
+  usePaginacion,
+} from "@/components/DataTablePagination";
 import { BannerStock } from "@/components/StockAlertas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +22,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   CalendarClock,
@@ -47,7 +61,10 @@ export const Route = createFileRoute("/_authenticated/equipos/")({
     pageSize?: number | undefined;
   } => ({
     tab:
-      s.tab === "en_reparacion" || s.tab === "en_alistamiento" || s.tab === "de_baja" || s.tab === "activos"
+      s.tab === "en_reparacion" ||
+      s.tab === "en_alistamiento" ||
+      s.tab === "de_baja" ||
+      s.tab === "activos"
         ? s.tab
         : undefined,
     estado: s.estado === "disponible" || s.estado === "asignado" ? s.estado : undefined,
@@ -59,7 +76,10 @@ export const Route = createFileRoute("/_authenticated/equipos/")({
     pageSize: typeof s.pageSize === "number" ? s.pageSize : Number(s.pageSize) || undefined,
   }),
   head: () => ({
-    meta: [{ title: "Inventario — Finesa" }, { name: "description", content: "Equipos de cómputo y periféricos." }],
+    meta: [
+      { title: "Inventario — Finesa" },
+      { name: "description", content: "Equipos de cómputo y periféricos." },
+    ],
   }),
   component: Equipos,
 });
@@ -116,7 +136,8 @@ function Equipos() {
     queryFn: async () => {
       const { data } = await supabase.rpc("panel_conteos");
       const c: Record<string, number> = {};
-      for (const r of (data ?? []) as { estado: string; total: number }[]) c[r.estado] = Number(r.total);
+      for (const r of (data ?? []) as { estado: string; total: number }[])
+        c[r.estado] = Number(r.total);
       return {
         activos: (c.disponible ?? 0) + (c.asignado ?? 0),
         disponible: c.disponible ?? 0,
@@ -132,9 +153,13 @@ function Equipos() {
     queryKey: ["equipos", "pagina", tab, filtros, pag.desde, pag.tamano],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      let s = supabase.from("equipos").select("*, empleado:empleados(id, nombre)", { count: "exact" });
+      let s = supabase
+        .from("equipos")
+        .select("*, empleado:empleados(id, nombre)", { count: "exact" });
       if (tab === "activos") {
-        s = f.estado ? s.eq("estado", f.estado as "disponible") : s.in("estado", ["disponible", "asignado"]);
+        s = f.estado
+          ? s.eq("estado", f.estado as "disponible")
+          : s.in("estado", ["disponible", "asignado"]);
       } else {
         s = s.eq("estado", tab);
       }
@@ -142,7 +167,11 @@ function Equipos() {
       if (f.marca) s = s.eq("marca_id", f.marca);
       if (f.sede) s = s.eq("sede_id", f.sede);
       if (texto) {
-        const { data: emps } = await supabase.from("empleados").select("id").ilike("nombre", `%${texto}%`).limit(200);
+        const { data: emps } = await supabase
+          .from("empleados")
+          .select("id")
+          .ilike("nombre", `%${texto}%`)
+          .limit(200);
         const conds = [
           `serie.ilike.%${texto}%`,
           `activo_fijo.ilike.%${texto}%`,
@@ -184,7 +213,7 @@ function Equipos() {
     conteo.activos + conteo.en_alistamiento + conteo.en_reparacion + conteo.de_baja;
   const pctDisponible = totalGeneral > 0 ? Math.round((conteo.disponible / totalGeneral) * 100) : 0;
   const pctAsignado = totalGeneral > 0 ? Math.round((conteo.asignado / totalGeneral) * 100) : 0;
-  const hoyIso = new Date().toISOString().slice(0, 10);
+  const hoyIso = hoyColombia();
 
   async function exportarActivosCSV() {
     if (!lista.length) return toast.info("No hay equipos en la vista actual para exportar");
@@ -208,9 +237,14 @@ function Equipos() {
     );
   }
 
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Inventario" desc={`${total.toLocaleString("es-CO")} equipo(s) en la vista actual`}>
+      <PageHeader
+        title="Inventario"
+        desc={`${total.toLocaleString("es-CO")} equipo(s) en la vista actual`}
+      >
         {tab === "activos" && (
           <Button variant="outline" size="sm" onClick={exportarActivosCSV} disabled={!lista.length}>
             <Download className="mr-1.5 h-3.5 w-3.5" />
@@ -245,7 +279,9 @@ function Equipos() {
           <div className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">
             {conteo.activos.toLocaleString("es-CO")}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Disponibles en bodega y asignados en operación.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Disponibles en bodega y asignados en operación.
+          </p>
         </button>
 
         <button
@@ -262,7 +298,9 @@ function Equipos() {
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Disponibles para entrega</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Disponibles para entrega
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-success/25 bg-success/10 text-success">
               <CheckCircle2 className="h-4 w-4" />
             </div>
@@ -275,7 +313,9 @@ function Equipos() {
               {pctDisponible}%
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Listos en stock para nuevas actas de entrega.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Listos en stock para nuevas actas de entrega.
+          </p>
         </button>
 
         <button
@@ -292,7 +332,9 @@ function Equipos() {
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Asignados a colaboradores</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Asignados a colaboradores
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
               <UserCheck className="h-4 w-4" />
             </div>
@@ -305,7 +347,9 @@ function Equipos() {
               {pctAsignado}%
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">En custodia activa respaldados por acta firmada.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            En custodia activa respaldados por acta firmada.
+          </p>
         </button>
 
         <button
@@ -359,7 +403,9 @@ function Equipos() {
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.2 font-mono text-[10px]",
-                    active ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground",
+                    active
+                      ? "bg-primary/15 text-primary font-semibold"
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
                   {conteo[k]}
@@ -419,7 +465,11 @@ function Equipos() {
             </button>
           )}
         </div>
-        <select className={sel} value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })}>
+        <select
+          className={sel}
+          value={f.tipo}
+          onChange={(e) => setF({ ...f, tipo: e.target.value })}
+        >
           <option value="">Todos los tipos</option>
           {cat.byTipo("tipo_equipo", false).map((c) => (
             <option key={c.id} value={c.id}>
@@ -427,7 +477,11 @@ function Equipos() {
             </option>
           ))}
         </select>
-        <select className={sel} value={f.marca} onChange={(e) => setF({ ...f, marca: e.target.value })}>
+        <select
+          className={sel}
+          value={f.marca}
+          onChange={(e) => setF({ ...f, marca: e.target.value })}
+        >
           <option value="">Todas las marcas</option>
           {cat.byTipo("marca", false).map((c) => (
             <option key={c.id} value={c.id}>
@@ -435,7 +489,11 @@ function Equipos() {
             </option>
           ))}
         </select>
-        <select className={sel} value={f.sede} onChange={(e) => setF({ ...f, sede: e.target.value })}>
+        <select
+          className={sel}
+          value={f.sede}
+          onChange={(e) => setF({ ...f, sede: e.target.value })}
+        >
           <option value="">Todas las sedes</option>
           {cat.byTipo("sede", false).map((c) => (
             <option key={c.id} value={c.id}>
@@ -507,7 +565,8 @@ function Equipos() {
                           title="Copiar serie"
                           onClick={async (ev) => {
                             ev.stopPropagation();
-                            if (await copiarTexto(e.serie)) toast.success(`Serie ${e.serie} copiada`);
+                            if (await copiarTexto(e.serie))
+                              toast.success(`Serie ${e.serie} copiada`);
                           }}
                           className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
                         >
@@ -515,7 +574,9 @@ function Equipos() {
                         </button>
                       </div>
                       {e.activo_fijo && (
-                        <div className="font-mono text-[11px] text-muted-foreground">AF: {e.activo_fijo}</div>
+                        <div className="font-mono text-[11px] text-muted-foreground">
+                          AF: {e.activo_fijo}
+                        </div>
                       )}
                       {e.garantia_fin && e.garantia_fin >= hoyIso && (
                         <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-success">
@@ -528,10 +589,14 @@ function Equipos() {
                     <td className="px-4 py-2.5 text-[13px] text-muted-foreground">
                       <span className="text-foreground">{cat.nombre(e.marca_id)}</span> {e.modelo}
                       {e.nombre_equipo && (
-                        <div className="font-mono text-[10px] text-muted-foreground">Host: {e.nombre_equipo}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          Host: {e.nombre_equipo}
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-[13px] text-muted-foreground">{cat.nombre(e.sede_id)}</td>
+                    <td className="px-4 py-2.5 text-[13px] text-muted-foreground">
+                      {cat.nombre(e.sede_id)}
+                    </td>
                     <td className="px-4 py-2.5 text-[13px]">
                       {emp ? (
                         <div>
@@ -555,7 +620,9 @@ function Equipos() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
-                      {e.valor_compra != null ? `$${Number(e.valor_compra).toLocaleString("es-CO")}` : "—"}
+                      {e.valor_compra != null
+                        ? `$${Number(e.valor_compra).toLocaleString("es-CO")}`
+                        : "—"}
                     </td>
                     <td className="px-4 py-2.5">
                       <EstadoEquipo estado={e.estado} />
@@ -621,19 +688,28 @@ function ListaEspecial({
     queryKey: ["equipos", "eventos", tab, ids.join(",")],
     enabled: ids.length > 0,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("equipo_historial")
-        .select("equipo_id, detalle, created_at, user_id")
-        .eq("evento", tab)
-        .in("equipo_id", ids)
-        .order("created_at", { ascending: false });
-      const filas = data ?? [];
+      const filas = await fetchByIds(ids, (ids, a, b) =>
+        supabase
+          .from("equipo_historial")
+          .select("equipo_id, detalle, created_at, user_id")
+          .eq("evento", tab)
+          .in("equipo_id", ids)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(a, b),
+      );
       const ultimo: Record<string, (typeof filas)[number]> = {};
       for (const r of filas) if (!ultimo[r.equipo_id]) ultimo[r.equipo_id] = r;
-      const uids = [...new Set(Object.values(ultimo).map((r) => r.user_id).filter(Boolean))] as string[];
-      const { data: ps } = uids.length
-        ? await supabase.from("profiles").select("id, nombre, email").in("id", uids)
-        : { data: [] };
+      const uids = [
+        ...new Set(
+          Object.values(ultimo)
+            .map((r) => r.user_id)
+            .filter(Boolean),
+        ),
+      ] as string[];
+      const ps = await fetchByIds(uids, (ids, a, b) =>
+        supabase.from("profiles").select("id, nombre, email").in("id", ids).order("id").range(a, b),
+      );
       const usuarios = Object.fromEntries((ps ?? []).map((p) => [p.id, p.nombre || p.email]));
       return { ultimo, usuarios };
     },
@@ -652,45 +728,58 @@ function ListaEspecial({
     setExportando(true);
     try {
       toast.info("Generando reporte de exportación…");
-      let s = supabase
-        .from("equipos")
-        .select("*, empleado:empleados(id, nombre)")
-        .eq("estado", tab);
-      if (filtrosActuales.tipo) s = s.eq("tipo_id", filtrosActuales.tipo);
-      if (filtrosActuales.marca) s = s.eq("marca_id", filtrosActuales.marca);
-      if (filtrosActuales.sede) s = s.eq("sede_id", filtrosActuales.sede);
-      if (filtrosActuales.texto) {
-        const { data: emps } = await supabase.from("empleados").select("id").ilike("nombre", `%${filtrosActuales.texto}%`).limit(200);
-        const conds = [
-          `serie.ilike.%${filtrosActuales.texto}%`,
-          `activo_fijo.ilike.%${filtrosActuales.texto}%`,
-          `modelo.ilike.%${filtrosActuales.texto}%`,
-          `nombre_equipo.ilike.%${filtrosActuales.texto}%`,
-        ];
-        if (emps?.length) conds.push(`empleado_id.in.(${emps.map((e) => e.id).join(",")})`);
-        s = s.or(conds.join(","));
-      }
-      const { data: items, error } = await s.order("updated_at", { ascending: false }).limit(2000);
-      if (error) throw error;
+      const emps = filtrosActuales.texto
+        ? await fetchAll((a, b) =>
+            supabase
+              .from("empleados")
+              .select("id")
+              .ilike("nombre", `%${filtrosActuales.texto}%`)
+              .order("id")
+              .range(a, b),
+          )
+        : [];
+      const items = await fetchAll((a, b) => {
+        let query = supabase
+          .from("equipos")
+          .select("*, empleado:empleados(id, nombre)")
+          .eq("estado", tab);
+        if (filtrosActuales.tipo) query = query.eq("tipo_id", filtrosActuales.tipo);
+        if (filtrosActuales.marca) query = query.eq("marca_id", filtrosActuales.marca);
+        if (filtrosActuales.sede) query = query.eq("sede_id", filtrosActuales.sede);
+        if (filtrosActuales.texto) {
+          const conds = ["serie", "activo_fijo", "modelo", "nombre_equipo"].map(
+            (field) => `${field}.ilike.%${filtrosActuales.texto}%`,
+          );
+          if (emps.length) conds.push(`empleado_id.in.(${emps.map((e) => e.id).join(",")})`);
+          query = query.or(conds.join(","));
+        }
+        return query.order("updated_at", { ascending: false }).order("id").range(a, b);
+      });
       if (!items?.length) return toast.info("No hay registros para exportar");
 
       const itemIds = items.map((e) => e.id);
-      const filasHist: { equipo_id: string; detalle: string | null; created_at: string; user_id: string | null }[] = [];
-      for (let i = 0; i < itemIds.length; i += 200) {
-        const { data } = await supabase
+      const filasHist = await fetchByIds(itemIds, (ids, a, b) =>
+        supabase
           .from("equipo_historial")
           .select("equipo_id, detalle, created_at, user_id")
           .eq("evento", tab)
-          .in("equipo_id", itemIds.slice(i, i + 200))
-          .order("created_at", { ascending: false });
-        filasHist.push(...(data ?? []));
-      }
+          .in("equipo_id", ids)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(a, b),
+      );
       const ultimo: Record<string, (typeof filasHist)[number]> = {};
       for (const r of filasHist) if (!ultimo[r.equipo_id]) ultimo[r.equipo_id] = r;
-      const uids = [...new Set(Object.values(ultimo).map((r) => r.user_id).filter(Boolean))] as string[];
-      const { data: ps } = uids.length
-        ? await supabase.from("profiles").select("id, nombre, email").in("id", uids)
-        : { data: [] };
+      const uids = [
+        ...new Set(
+          Object.values(ultimo)
+            .map((r) => r.user_id)
+            .filter(Boolean),
+        ),
+      ] as string[];
+      const ps = await fetchByIds(uids, (ids, a, b) =>
+        supabase.from("profiles").select("id, nombre, email").in("id", ids).order("id").range(a, b),
+      );
       const usuarios = Object.fromEntries((ps ?? []).map((p) => [p.id, p.nombre || p.email]));
 
       const getInfo = (id: string) => {
@@ -727,9 +816,10 @@ function ListaEspecial({
                 Marca: cat.nombre(e.marca_id),
                 Modelo: e.modelo ?? "",
                 "Último responsable": i.anterior,
-                "Fecha de baja": i.fecha,
+                [tab === "en_alistamiento" ? "Fecha de ingreso a alistamiento" : "Fecha de baja"]:
+                  i.fecha,
                 Motivo: i.motivo,
-                "Dado de baja por": i.por,
+                [tab === "en_alistamiento" ? "Registrado por" : "Dado de baja por"]: i.por,
               },
         );
       });
@@ -737,7 +827,11 @@ function ListaEspecial({
       XLSX.utils.book_append_sheet(
         wb,
         XLSX.utils.json_to_sheet(filas),
-        tab === "en_reparacion" ? "En reparación" : tab === "en_alistamiento" ? "En alistamiento" : "Dados de baja",
+        tab === "en_reparacion"
+          ? "En reparación"
+          : tab === "en_alistamiento"
+            ? "En alistamiento"
+            : "Dados de baja",
       );
       XLSX.writeFile(
         wb,
@@ -758,7 +852,12 @@ function ListaEspecial({
   return (
     <div>
       <div className="mb-2 flex justify-end">
-        <Button variant="outline" size="sm" onClick={exportar} disabled={exportando || !lista.length}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportar}
+          disabled={exportando || !lista.length}
+        >
           <Download className="mr-1 h-3.5 w-3.5" />
           {exportando ? "Exportando…" : "Exportar a Excel"}
         </Button>
@@ -805,7 +904,11 @@ function ListaEspecial({
                     >
                       {e.serie}
                     </Link>
-                    {e.activo_fijo && <div className="font-mono text-[11px] text-muted-foreground">{e.activo_fijo}</div>}
+                    {e.activo_fijo && (
+                      <div className="font-mono text-[11px] text-muted-foreground">
+                        {e.activo_fijo}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-[13px]">
                     {cat.nombre(e.tipo_id)} · {cat.nombre(e.marca_id)} {e.modelo}
@@ -828,11 +931,15 @@ function ListaEspecial({
                   ) : (
                     <td className="px-4 py-2.5 text-[13px]">{i.anterior}</td>
                   )}
-                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-muted-foreground">{i.fecha}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                    {i.fecha}
+                  </td>
                   <td className="max-w-xs px-4 py-2.5 text-xs text-muted-foreground">{i.motivo}</td>
                   {tab === "en_reparacion" ? (
                     <td className="px-4 py-2.5 text-right" onClick={(ev) => ev.stopPropagation()}>
-                      {puedeEditar && <FinalizarReparacion id={e.id} empleado={emp?.nombre ?? null} size="sm" />}
+                      {puedeEditar && (
+                        <FinalizarReparacion id={e.id} empleado={emp?.nombre ?? null} size="sm" />
+                      )}
                     </td>
                   ) : (
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">{i.por}</td>
@@ -865,7 +972,7 @@ function NuevoEquipo() {
     sede_id: "",
     modelo: "",
     serie: "",
-    fecha_ingreso: new Date().toISOString().slice(0, 10),
+    fecha_ingreso: hoyColombia(),
     estado: "disponible",
     observaciones: "",
     proveedor: "",
@@ -879,13 +986,16 @@ function NuevoEquipo() {
     e.preventDefault();
     if (!f.tipo_id) return toast.error("Seleccione el tipo de equipo");
     setLoading(true);
+    let factura_path: string | null = null;
+    let guardado = false;
     try {
-      let factura_path: string | null = null;
       if (factura) {
         if (factura.size > 10 * 1024 * 1024) throw new Error("La factura supera 10 MB");
         const ext = factura.name.split(".").pop()?.toLowerCase() ?? "pdf";
         factura_path = `${crypto.randomUUID()}.${ext}`;
-        const { error } = await supabase.storage.from("facturas").upload(factura_path, factura, { contentType: factura.type });
+        const { error } = await supabase.storage
+          .from("facturas")
+          .upload(factura_path, factura, { contentType: factura.type });
         if (error) throw error;
       }
       const { data, error } = await supabase
@@ -905,7 +1015,11 @@ function NuevoEquipo() {
         })
         .select("serie")
         .single();
-      if (error) throw error.code === "23505" ? new Error("Ya existe un equipo con esa serie o código.") : error;
+      if (error)
+        throw error.code === "23505"
+          ? new Error("Ya existe un equipo con esa serie o código.")
+          : error;
+      guardado = true;
       toast.success(`Equipo registrado: ${data.serie}`);
       setF(vacio);
       setFactura(null);
@@ -913,6 +1027,13 @@ function NuevoEquipo() {
       qc.invalidateQueries({ queryKey: ["equipos"] });
     } catch (e) {
       toast.error(errMsg(e));
+      if (factura_path && !guardado) {
+        const { error } = await supabase.storage.from("facturas").remove([factura_path]);
+        if (error)
+          toast.error(
+            "No se pudo retirar la factura de la operación fallida. Contacte al administrador.",
+          );
+      }
     } finally {
       setLoading(false);
     }
@@ -940,6 +1061,7 @@ function NuevoEquipo() {
           <div className="space-y-1.5">
             <Label>Tipo de equipo *</Label>
             <select
+              aria-label="Tipo de equipo *"
               className={sel + " w-full"}
               value={f.tipo_id}
               onChange={(e) => setF({ ...f, tipo_id: e.target.value })}
@@ -951,18 +1073,28 @@ function NuevoEquipo() {
           </div>
           <div className="space-y-1.5">
             <Label>Marca</Label>
-            <select className={sel + " w-full"} value={f.marca_id} onChange={(e) => setF({ ...f, marca_id: e.target.value })}>
+            <select
+              aria-label="Marca"
+              className={sel + " w-full"}
+              value={f.marca_id}
+              onChange={(e) => setF({ ...f, marca_id: e.target.value })}
+            >
               <option value="">—</option>
               {opt("marca")}
             </select>
           </div>
           <div className="space-y-1.5">
             <Label>Modelo</Label>
-            <Input value={f.modelo} onChange={(e) => setF({ ...f, modelo: e.target.value })} />
+            <Input
+              aria-label="Modelo"
+              value={f.modelo}
+              onChange={(e) => setF({ ...f, modelo: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Número de serie</Label>
             <Input
+              aria-label="Número de serie"
               value={f.serie}
               placeholder="Vacío = código FIN-ACC automático"
               onChange={(e) => setF({ ...f, serie: e.target.value })}
@@ -970,37 +1102,70 @@ function NuevoEquipo() {
           </div>
           <div className="space-y-1.5">
             <Label>Sede</Label>
-            <select className={sel + " w-full"} value={f.sede_id} onChange={(e) => setF({ ...f, sede_id: e.target.value })}>
+            <select
+              aria-label="Sede"
+              className={sel + " w-full"}
+              value={f.sede_id}
+              onChange={(e) => setF({ ...f, sede_id: e.target.value })}
+            >
               <option value="">—</option>
               {opt("sede")}
             </select>
           </div>
           <div className="space-y-1.5">
             <Label>Estado inicial</Label>
-            <select className={sel + " w-full"} value={f.estado} onChange={(e) => setF({ ...f, estado: e.target.value })}>
+            <select
+              aria-label="Estado inicial"
+              className={sel + " w-full"}
+              value={f.estado}
+              onChange={(e) => setF({ ...f, estado: e.target.value })}
+            >
               <option value="disponible">Disponible</option>
               <option value="en_reparacion">En reparación</option>
             </select>
           </div>
           <div className="space-y-1.5">
             <Label>Fecha de ingreso</Label>
-            <Input type="date" value={f.fecha_ingreso} onChange={(e) => setF({ ...f, fecha_ingreso: e.target.value })} />
+            <Input
+              aria-label="Fecha de ingreso"
+              type="date"
+              value={f.fecha_ingreso}
+              onChange={(e) => setF({ ...f, fecha_ingreso: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Fin de garantía</Label>
-            <Input type="date" value={f.garantia_fin} onChange={(e) => setF({ ...f, garantia_fin: e.target.value })} />
+            <Input
+              aria-label="Fin de garantía"
+              type="date"
+              value={f.garantia_fin}
+              onChange={(e) => setF({ ...f, garantia_fin: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Proveedor</Label>
-            <Input value={f.proveedor} onChange={(e) => setF({ ...f, proveedor: e.target.value })} />
+            <Input
+              aria-label="Proveedor"
+              value={f.proveedor}
+              onChange={(e) => setF({ ...f, proveedor: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Factura (PDF o imagen)</Label>
-            <Input type="file" accept="application/pdf,image/*" onChange={(e) => setFactura(e.target.files?.[0] ?? null)} />
+            <Input
+              aria-label="Factura (PDF o imagen)"
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={(e) => setFactura(e.target.files?.[0] ?? null)}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Observaciones</Label>
-            <Textarea value={f.observaciones} onChange={(e) => setF({ ...f, observaciones: e.target.value })} />
+            <Textarea
+              aria-label="Observaciones"
+              value={f.observaciones}
+              onChange={(e) => setF({ ...f, observaciones: e.target.value })}
+            />
           </div>
           <DialogFooter className="sm:col-span-2">
             <Button type="submit" disabled={loading}>

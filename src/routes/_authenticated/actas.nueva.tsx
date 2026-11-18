@@ -1,3 +1,4 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
 import { fetchAll } from "@/lib/fetchAll";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,7 +31,10 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/actas/nueva")({
   head: () => ({
-    meta: [{ title: "Nueva acta — Finesa" }, { name: "description", content: "Crear acta de entrega o devolución." }],
+    meta: [
+      { title: "Nueva acta — Finesa" },
+      { name: "description", content: "Crear acta de entrega o devolución." },
+    ],
   }),
   component: NuevaActa,
 });
@@ -62,7 +66,9 @@ function NuevaActa() {
   const emps = useQuery({
     queryKey: ["empleados"],
     queryFn: () =>
-      fetchAll((a, b) => supabase.from("empleados").select("*").order("nombre").order("id").range(a, b)),
+      fetchAll((a, b) =>
+        supabase.from("empleados").select("*").order("nombre").order("id").range(a, b),
+      ),
   });
   const eqs = useQuery({
     queryKey: ["equipos"],
@@ -80,19 +86,28 @@ function NuevaActa() {
   const pendientesQ = useQuery({
     queryKey: ["actas", "equipos-en-pendientes"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("acta_items")
-        .select("equipo_id, acta:actas!inner(id, estado)")
-        .eq("acta.estado", "pendiente");
-      return new Set((data ?? []).map((x) => x.equipo_id));
+      const data = await fetchAll((a, b) =>
+        supabase
+          .from("acta_items")
+          .select("equipo_id, acta:actas!inner(id, estado)")
+          .eq("acta.estado", "pendiente")
+          .order("id")
+          .range(a, b),
+      );
+      return new Set(data.map((x) => x.equipo_id));
     },
   });
-  const equiposEnPendiente = pendientesQ.data ?? new Set<string>();
+  const equiposEnPendiente = useMemo(
+    () => pendientesQ.data ?? new Set<string>(),
+    [pendientesQ.data],
+  );
 
   const empleados = (emps.data ?? []).filter(
     (e) =>
       (tipo === "devolucion" || e.activo) &&
-      (!buscaEmp || e.nombre.toLowerCase().includes(buscaEmp.toLowerCase()) || e.identificacion.includes(buscaEmp)),
+      (!buscaEmp ||
+        e.nombre.toLowerCase().includes(buscaEmp.toLowerCase()) ||
+        e.identificacion.includes(buscaEmp)),
   );
   const disponibles = useMemo(() => {
     const t = buscaEq.toLowerCase();
@@ -104,11 +119,15 @@ function NuevaActa() {
             ? e.estado === "disponible"
             : tipo === "devolucion"
               ? e.estado === "asignado" && e.empleado_id === empleadoId
-              : e.estado === "disponible" || (e.estado === "asignado" && e.empleado_id === empleadoId)) &&
+              : e.estado === "disponible" ||
+                (e.estado === "asignado" && e.empleado_id === empleadoId)) &&
           (!fTipo || e.tipo_id === fTipo) &&
           (!fMarca || e.marca_id === fMarca) &&
           (!fSede || e.sede_id === fSede) &&
-          (!t || [e.serie, e.modelo, e.activo_fijo, e.nombre_equipo].some((v) => (v ?? "").toLowerCase().includes(t))),
+          (!t ||
+            [e.serie, e.modelo, e.activo_fijo, e.nombre_equipo].some((v) =>
+              (v ?? "").toLowerCase().includes(t),
+            )),
       )
       .slice(0, 300);
   }, [eqs.data, equiposEnPendiente, tipo, empleadoId, buscaEq, fTipo, fMarca, fSede]);
@@ -121,54 +140,55 @@ function NuevaActa() {
       [id]: { ...(d[id] ?? { estado_fisico: "Bueno", accesorios: "", nota: "" }), [k]: v },
     }));
 
+  if (emps.isError || eqs.isError || pendientesQ.isError)
+    return (
+      <ErrorConsulta
+        reintentar={() => Promise.all([emps.refetch(), eqs.refetch(), pendientesQ.refetch()])}
+      />
+    );
   if (!me?.can("actas_entrega") && !me?.can("actas_devolucion"))
     return <p className="text-muted-foreground">No tiene permiso para crear actas.</p>;
 
   async function crear() {
     if (!empleadoId) return toast.error("Seleccione un empleado");
     if (!sel.length) return toast.error("Seleccione al menos un equipo");
-    if (tipo === "cambio" && (!sel.some((i) => dirDe(i) === "entrega") || !sel.some((i) => dirDe(i) === "devolucion")))
+    if (
+      tipo === "cambio" &&
+      (!sel.some((i) => dirDe(i) === "entrega") || !sel.some((i) => dirDe(i) === "devolucion"))
+    )
       return toast.error("Un cambio necesita al menos un equipo que devuelve y uno que recibe");
     setLoading(true);
     try {
-      const { data: acta, error } = await supabase
-        .from("actas")
-        .insert({ tipo, empleado_id: empleadoId, tecnico_id: me!.id, observaciones: obs || null })
-        .select("id")
-        .single();
+      const { data: actaId, error } = await supabase.rpc("crear_acta", {
+        p_empleado: empleadoId,
+        p_tipo: tipo,
+        p_observaciones: obs.trim() || null,
+        p_items: sel.map((equipo_id) => {
+          const d = det[equipo_id];
+          const direccion = dirDe(equipo_id);
+          return {
+            equipo_id,
+            direccion,
+            estado_destino:
+              direccion === "devolucion" ? (d?.destino ?? "disponible") : "disponible",
+            estado_fisico: d?.estado_fisico ?? "Bueno",
+            accesorios: d?.accesorios.trim() || null,
+            nota: d?.nota.trim() || null,
+          };
+        }),
+      });
       if (error) throw error;
-
+      if (!actaId) throw new Error("No se recibió el identificador del acta");
       try {
-        const { error: e2 } = await supabase.from("acta_items").insert(
-          sel.map((equipo_id) => {
-            const d = det[equipo_id];
-            const dir = dirDe(equipo_id);
-            return {
-              acta_id: acta.id,
-              equipo_id,
-              direccion: dir,
-              estado_destino: dir === "devolucion" ? (d?.destino ?? "disponible") : "disponible",
-              estado_fisico: d?.estado_fisico ?? "Bueno",
-              accesorios: d?.accesorios.trim() || null,
-              nota: d?.nota.trim() || null,
-            };
-          }),
-        );
-        if (e2) throw e2;
-      } catch (errItems) {
-        // Revertir el encabezado del acta para no dejar registros huérfanos vacíos
-        await supabase.from("actas").delete().eq("id", acta.id);
-        throw errItems;
-      }
-
-      try {
-        await adjuntar({ data: { actaId: acta.id } });
+        await adjuntar({ data: { actaId } });
       } catch {
-        /* la firma del técnico es opcional */
+        toast.warning(
+          "Acta creada, pero no se pudo adjuntar la firma del técnico. Revise su firma registrada antes de continuar.",
+        );
       }
       ["actas", "panel", "equipos"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
       toast.success("Acta creada. Proceda con la firma.");
-      nav({ to: "/actas/$id", params: { id: acta.id } });
+      nav({ to: "/actas/$id", params: { id: actaId } });
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
@@ -189,7 +209,11 @@ function NuevaActa() {
       {miFirma.data && !miFirma.data.url && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/35 bg-warning/10 px-4 py-3 text-xs sm:text-sm">
           <span>No tiene una firma registrada; el acta se emitirá sin firma del técnico.</span>
-          <Link to="/ajustes" search={{ tab: "firma" }} className="shrink-0 font-semibold text-primary hover:underline">
+          <Link
+            to="/ajustes"
+            search={{ tab: "firma" }}
+            className="shrink-0 font-semibold text-primary hover:underline"
+          >
             Registrar mi firma →
           </Link>
         </div>
@@ -200,6 +224,7 @@ function NuevaActa() {
         {me.can("actas_entrega") && (
           <button
             type="button"
+            aria-pressed={tipo === "entrega"}
             onClick={() => {
               setTipo("entrega");
               setSel([]);
@@ -223,7 +248,9 @@ function NuevaActa() {
             </div>
             <div>
               <div className="text-sm font-semibold text-foreground">Acta de entrega</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Asignar equipos disponibles a un empleado</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                Asignar equipos disponibles a un empleado
+              </div>
             </div>
           </button>
         )}
@@ -231,6 +258,7 @@ function NuevaActa() {
         {me.can("actas_devolucion") && (
           <button
             type="button"
+            aria-pressed={tipo === "devolucion"}
             onClick={() => {
               setTipo("devolucion");
               setSel([]);
@@ -254,7 +282,9 @@ function NuevaActa() {
             </div>
             <div>
               <div className="text-sm font-semibold text-foreground">Acta de devolución</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Recibir equipos a cargo de un empleado</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                Recibir equipos a cargo de un empleado
+              </div>
             </div>
           </button>
         )}
@@ -262,6 +292,7 @@ function NuevaActa() {
         {me.can("actas_entrega") && me.can("actas_devolucion") && (
           <button
             type="button"
+            aria-pressed={tipo === "cambio"}
             onClick={() => {
               setTipo("cambio");
               setSel([]);
@@ -285,7 +316,9 @@ function NuevaActa() {
             </div>
             <div>
               <div className="text-sm font-semibold text-foreground">Cambio de equipo</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">Recibir y entregar en una sola firma</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                Recibir y entregar en una sola firma
+              </div>
             </div>
           </button>
         )}
@@ -313,6 +346,7 @@ function NuevaActa() {
           <div className="relative mb-2.5">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              aria-label="Buscar colaborador"
               placeholder="Buscar por nombre o cédula…"
               value={buscaEmp}
               onChange={(e) => setBuscaEmp(e.target.value)}
@@ -321,6 +355,7 @@ function NuevaActa() {
             {buscaEmp && (
               <button
                 type="button"
+                aria-label="Limpiar búsqueda de colaborador"
                 onClick={() => setBuscaEmp("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -336,6 +371,7 @@ function NuevaActa() {
                 <li key={e.id}>
                   <button
                     type="button"
+                    aria-pressed={selected}
                     onClick={() => {
                       setEmpleadoId(e.id);
                       setSel([]);
@@ -346,7 +382,12 @@ function NuevaActa() {
                     )}
                   >
                     <div className="min-w-0">
-                      <div className={cn("truncate font-medium", selected && "font-semibold text-primary")}>
+                      <div
+                        className={cn(
+                          "truncate font-medium",
+                          selected && "font-semibold text-primary",
+                        )}
+                      >
                         {e.nombre}
                       </div>
                       <div className="truncate font-mono text-xs text-muted-foreground">
@@ -359,7 +400,9 @@ function NuevaActa() {
               );
             })}
             {!empleados.length && (
-              <li className="px-3 py-8 text-center text-xs text-muted-foreground">No se encontraron empleados.</li>
+              <li className="px-3 py-8 text-center text-xs text-muted-foreground">
+                No se encontraron empleados.
+              </li>
             )}
           </ul>
         </section>
@@ -388,6 +431,7 @@ function NuevaActa() {
           <div className="relative mb-2">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              aria-label="Buscar equipo"
               placeholder="Buscar serie, modelo, activo fijo o nombre…"
               value={buscaEq}
               onChange={(e) => setBuscaEq(e.target.value)}
@@ -396,6 +440,7 @@ function NuevaActa() {
             {buscaEq && (
               <button
                 type="button"
+                aria-label="Limpiar búsqueda de equipo"
                 onClick={() => setBuscaEq("")}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -405,7 +450,12 @@ function NuevaActa() {
           </div>
 
           <div className="mb-2.5 grid grid-cols-3 gap-1.5">
-            <select aria-label="Tipo" className={fs} value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+            <select
+              aria-label="Tipo"
+              className={fs}
+              value={fTipo}
+              onChange={(e) => setFTipo(e.target.value)}
+            >
               <option value="">Tipo</option>
               {cat.byTipo("tipo_equipo", false).map((c) => (
                 <option key={c.id} value={c.id}>
@@ -413,7 +463,12 @@ function NuevaActa() {
                 </option>
               ))}
             </select>
-            <select aria-label="Marca" className={fs} value={fMarca} onChange={(e) => setFMarca(e.target.value)}>
+            <select
+              aria-label="Marca"
+              className={fs}
+              value={fMarca}
+              onChange={(e) => setFMarca(e.target.value)}
+            >
               <option value="">Marca</option>
               {cat.byTipo("marca", false).map((c) => (
                 <option key={c.id} value={c.id}>
@@ -421,7 +476,12 @@ function NuevaActa() {
                 </option>
               ))}
             </select>
-            <select aria-label="Sede" className={fs} value={fSede} onChange={(e) => setFSede(e.target.value)}>
+            <select
+              aria-label="Sede"
+              className={fs}
+              value={fSede}
+              onChange={(e) => setFSede(e.target.value)}
+            >
               <option value="">Sede</option>
               {cat.byTipo("sede", false).map((c) => (
                 <option key={c.id} value={c.id}>
@@ -444,14 +504,18 @@ function NuevaActa() {
                   >
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={(c) => setSel(c ? [...sel, e.id] : sel.filter((x) => x !== e.id))}
+                      onCheckedChange={(c) =>
+                        setSel(c ? [...sel, e.id] : sel.filter((x) => x !== e.id))
+                      }
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-foreground">
                         {cat.nombre(e.tipo_id)} {cat.nombre(e.marca_id)} {e.modelo}
                       </span>
                       {e.activo_fijo && (
-                        <span className="block font-mono text-[11px] text-muted-foreground">AF: {e.activo_fijo}</span>
+                        <span className="block font-mono text-[11px] text-muted-foreground">
+                          AF: {e.activo_fijo}
+                        </span>
                       )}
                     </span>
                     {tipo === "cambio" && (
@@ -528,7 +592,9 @@ function NuevaActa() {
 
                   {/* Interactive Condition Pills */}
                   <div className="space-y-1">
-                    <span className="text-[11px] font-medium text-muted-foreground">Estado físico</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Estado físico
+                    </span>
                     <div className="flex flex-wrap gap-1">
                       {["Nuevo", "Bueno", "Regular", "Con daños"].map((x) => (
                         <button
@@ -549,7 +615,9 @@ function NuevaActa() {
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[11px] font-medium text-muted-foreground">Accesorios incluidos</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Accesorios incluidos
+                    </span>
                     <Input
                       placeholder="Cargador, maletín, mouse…"
                       value={d.accesorios}
@@ -557,7 +625,9 @@ function NuevaActa() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[11px] font-medium text-muted-foreground">Nota particular</span>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Nota particular
+                    </span>
                     <Input
                       placeholder="Opcional…"
                       value={d.nota}
@@ -576,6 +646,7 @@ function NuevaActa() {
         <div className="space-y-2">
           <Label className="text-sm font-semibold">4. Observaciones generales del acta</Label>
           <Textarea
+            aria-label="4. Observaciones generales del acta"
             value={obs}
             onChange={(e) => setObs(e.target.value)}
             placeholder="Novedades o acuerdos adicionales…"
@@ -583,7 +654,8 @@ function NuevaActa() {
         </div>
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
           <span className="text-xs text-muted-foreground">
-            {empSel ? `Colaborador: ${empSel.nombre}` : "Seleccione un colaborador"} · {sel.length} equipo(s)
+            {empSel ? `Colaborador: ${empSel.nombre}` : "Seleccione un colaborador"} · {sel.length}{" "}
+            equipo(s)
           </span>
           <Button onClick={crear} disabled={loading || !empleadoId || !sel.length}>
             {loading

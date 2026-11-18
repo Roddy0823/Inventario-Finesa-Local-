@@ -10,3 +10,20 @@ export async function fetchAll<T>(
     if (!data || data.length < 1000) return out;
   }
 }
+
+/** Fragmenta IN para no exceder el tamaño de URL; cada fragmento pagina su resultado. */
+export async function fetchByIds<T>(
+  ids: string[],
+  build: (
+    ids: string[],
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  const unique = [...new Set(ids)];
+  for (let i = 0; i < unique.length; i += 100) {
+    rows.push(...(await fetchAll((from, to) => build(unique.slice(i, i + 100), from, to))));
+  }
+  return rows;
+}

@@ -5,9 +5,16 @@ import type { Permiso } from "@/lib/constantes";
 
 function perfil(rol: "admin" | "auxiliar" | "empleado", permisos: Permiso[] = []): Me {
   return {
-    id: "user", email: "test@example.com", nombre: "Test", activo: true,
-    roles: [rol], permisos, isAdmin: rol === "admin", isStaff: rol !== "empleado",
-    isEmpleado: rol === "empleado", can: (p) => rol === "admin" || permisos.includes(p),
+    id: "user",
+    email: "test@example.com",
+    nombre: "Test",
+    activo: true,
+    roles: [rol],
+    permisos,
+    isAdmin: rol === "admin",
+    isStaff: rol !== "empleado",
+    isEmpleado: rol === "empleado",
+    can: (p) => rol === "admin" || permisos.includes(p),
   };
 }
 

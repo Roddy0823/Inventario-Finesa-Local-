@@ -2,7 +2,11 @@ import { ESTADO_ACTA, ESTADO_EQUIPO } from "@/lib/constantes";
 import { cn } from "@/lib/utils";
 
 export function EstadoEquipo({ estado }: { estado: string }) {
-  const e = ESTADO_EQUIPO[estado] ?? { label: estado, cls: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground" };
+  const e = ESTADO_EQUIPO[estado] ?? {
+    label: estado,
+    cls: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+  };
   return (
     <span
       className={cn(
@@ -17,7 +21,11 @@ export function EstadoEquipo({ estado }: { estado: string }) {
 }
 
 export function EstadoActa({ estado }: { estado: string }) {
-  const e = ESTADO_ACTA[estado] ?? { label: estado, cls: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground" };
+  const e = ESTADO_ACTA[estado] ?? {
+    label: estado,
+    cls: "bg-muted text-muted-foreground border-border",
+    dot: "bg-muted-foreground",
+  };
   return (
     <span
       className={cn(
@@ -43,7 +51,9 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-4">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          {title}
+        </h1>
         {desc && <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{desc}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}

@@ -19,7 +19,11 @@ describe("cargaMasivaStore", () => {
   it("transiciona a revisión al fijar la lectura del archivo", () => {
     const lectura = { archivo: "datos.xlsx", hojas: {} } as unknown as Lectura;
     const ctx = { esAdmin: true } as unknown as Contexto;
-    const val = { filas: { empleados: [], equipos: [], asignaciones: [] }, faltantes: [], advertenciasGenerales: [] } as unknown as Validacion;
+    const val = {
+      filas: { empleados: [], equipos: [], asignaciones: [] },
+      faltantes: [],
+      advertenciasGenerales: [],
+    } as unknown as Validacion;
 
     cargaMasivaStore.setRevision(lectura, ctx, val);
 

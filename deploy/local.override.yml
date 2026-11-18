@@ -1,0 +1,27 @@
+# Prueba en este computador. No publica bases de datos ni paneles en la LAN.
+services:
+  api-gw:
+    ports: !override
+      - "127.0.0.1:8000:8000"
+  db:
+    volumes:
+      - finesa-db:/var/lib/postgresql/data
+  storage:
+    volumes:
+      - finesa-storage:/var/lib/storage
+  imgproxy:
+    volumes:
+      - finesa-storage:/var/lib/storage:ro
+  functions:
+    profiles: [optional]
+  supavisor:
+    profiles: [optional]
+    ports: !reset []
+  mail:
+    image: axllent/mailpit:v1.27.8
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+volumes:
+  finesa-db:
+  finesa-storage:

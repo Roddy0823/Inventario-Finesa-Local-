@@ -2,7 +2,10 @@ import { useSyncExternalStore } from "react";
 import type { Contexto, FilaValidada, Lectura, Validacion } from "./cargaMasiva";
 
 export type Resultado = "nuevo" | "existe" | "error" | "fallo";
-export type FilaResultado = FilaValidada & { resultado?: Resultado | undefined; detalleResultado?: string | undefined };
+export type FilaResultado = FilaValidada & {
+  resultado?: Resultado | undefined;
+  detalleResultado?: string | undefined;
+};
 export type Fase = "idle" | "leyendo" | "revision" | "procesando" | "resultado";
 export type Paso = "catalogos" | "empleados" | "equipos" | "asignaciones";
 
@@ -38,6 +41,9 @@ const initialState: CargaMasivaState = {
 };
 
 let state: CargaMasivaState = { ...initialState };
+let identity: string | null = null;
+let generation = 0;
+let controller = new AbortController();
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -51,6 +57,28 @@ function notify() {
 }
 
 export const cargaMasivaStore = {
+  setIdentity(userId: string | null) {
+    if (identity === userId) return;
+    identity = userId;
+    this.reiniciar();
+  },
+
+  iniciarOperacion() {
+    controller.abort();
+    controller = new AbortController();
+    const current = ++generation;
+    const userId = identity;
+    const signal = controller.signal;
+    return {
+      userId,
+      signal,
+      vigente: () => current === generation && userId === identity && !signal.aborted,
+      comprobar() {
+        if (current !== generation || userId !== identity || signal.aborted)
+          throw new DOMException("La sesión o la carga cambió", "AbortError");
+      },
+    };
+  },
   getState(): CargaMasivaState {
     return state;
   },
@@ -139,6 +167,8 @@ export const cargaMasivaStore = {
   },
 
   reiniciar() {
+    controller.abort();
+    generation++;
     state = { ...initialState };
     notify();
   },

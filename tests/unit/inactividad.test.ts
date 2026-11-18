@@ -3,15 +3,22 @@ import { beforeEach, describe, expect, it } from "vitest";
 const store = new Map<string, string>();
 const mockLocalStorage = {
   getItem: (k: string) => store.get(k) ?? null,
-  setItem: (k: string, v: string) => { store.set(k, String(v)); },
-  removeItem: (k: string) => { store.delete(k); },
-  clear: () => { store.clear(); },
+  setItem: (k: string, v: string) => {
+    store.set(k, String(v));
+  },
+  removeItem: (k: string) => {
+    store.delete(k);
+  },
+  clear: () => {
+    store.clear();
+  },
 };
 
 (globalThis as unknown as { window: { localStorage: typeof mockLocalStorage } }).window = {
   localStorage: mockLocalStorage,
 };
-(globalThis as unknown as { localStorage: typeof mockLocalStorage }).localStorage = mockLocalStorage;
+(globalThis as unknown as { localStorage: typeof mockLocalStorage }).localStorage =
+  mockLocalStorage;
 
 import {
   IDLE_STORAGE_KEY,

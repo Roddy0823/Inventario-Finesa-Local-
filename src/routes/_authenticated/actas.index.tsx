@@ -1,3 +1,6 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { hoyColombia, inicioDiaColombia, finExclusivoColombia } from "@/lib/fechas";
+import { normalizarPaginacion } from "@/lib/paginacion";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,15 +12,31 @@ import { TIPO_ACTA, errMsg, fmtFecha } from "@/lib/constantes";
 import { urlArchivo, crearEnlaceFirma } from "@/lib/firmas.functions";
 import { descargarPdfActa } from "@/lib/descargarPdf";
 import { copiarTexto } from "@/lib/utils";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import { DataTablePagination, FilasSkeleton } from "@/components/DataTablePagination";
 import { PageHeader, EstadoActa } from "@/components/Estado";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Ban, Download, FileArchive, Plus, Search, X, ChevronRight, Copy, PenLine } from "lucide-react";
+import {
+  Ban,
+  Download,
+  FileArchive,
+  Plus,
+  Search,
+  X,
+  ChevronRight,
+  Copy,
+  PenLine,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/actas/")({
@@ -43,7 +62,10 @@ export const Route = createFileRoute("/_authenticated/actas/")({
     pageSize: typeof s.pageSize === "number" ? s.pageSize : Number(s.pageSize) || undefined,
   }),
   head: () => ({
-    meta: [{ title: "Repositorio de actas — Finesa" }, { name: "description", content: "Listado centralizado de actas." }],
+    meta: [
+      { title: "Repositorio de actas — Finesa" },
+      { name: "description", content: "Listado centralizado de actas." },
+    ],
   }),
   component: Repositorio,
 });
@@ -107,7 +129,7 @@ function Repositorio() {
   const [zipando, setZipando] = useState(false);
 
   const filtros = { desde, hasta, texto: qParam, tecnico, tipo, estado };
-  const pag = usePaginacion(filtros, search.pageSize ?? 25);
+  const pag = normalizarPaginacion(search.page, search.pageSize);
 
   const conteoQ = useQuery({
     queryKey: ["actas", "conteos"],
@@ -136,10 +158,15 @@ function Repositorio() {
       }
       const [todas, pendiente, firmada, anulada] = await Promise.all([
         supabase.from("actas").select("id", { count: "exact", head: true }),
-        supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+        supabase
+          .from("actas")
+          .select("id", { count: "exact", head: true })
+          .eq("estado", "pendiente"),
         supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "firmada"),
         supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "anulada"),
       ]);
+      for (const result of [todas, pendiente, firmada, anulada])
+        if (result.error) throw result.error;
       return {
         todas: todas.count ?? 0,
         pendiente: pendiente.count ?? 0,
@@ -172,8 +199,8 @@ function Repositorio() {
 
       if (estado) s = s.eq("estado", estado as "pendiente");
       if (tipo) s = s.eq("tipo", tipo as "entrega");
-      if (desde) s = s.gte("created_at", desde);
-      if (hasta) s = s.lte("created_at", hasta + "T23:59:59");
+      if (desde) s = s.gte("created_at", inicioDiaColombia(desde));
+      if (hasta) s = s.lt("created_at", finExclusivoColombia(hasta));
       if (tecnico) s = s.ilike("tecnico_nombre", `%${tecnico}%`);
 
       if (qParam) {
@@ -237,7 +264,7 @@ function Repositorio() {
       const o = URL.createObjectURL(blob);
       const el = document.createElement("a");
       el.href = o;
-      el.download = `actas_${new Date().toISOString().slice(0, 10)}.zip`;
+      el.download = `actas_${hoyColombia()}.zip`;
       document.body.appendChild(el);
       el.click();
       el.remove();
@@ -258,9 +285,15 @@ function Repositorio() {
     "h-9 rounded-lg border border-input bg-card/70 px-3 text-xs font-medium text-foreground shadow-2xs transition-colors hover:border-border focus:border-primary/60 focus:outline-none";
   const hayFiltros = Boolean(desde || hasta || qParam || tecnico || tipo || estado);
 
+  if (conteoQ.isError) return <ErrorConsulta reintentar={() => conteoQ.refetch()} />;
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Repositorio de actas" desc="Consulte, filtre y descargue las actas digitales de entrega, devolución y cambio.">
+      <PageHeader
+        title="Repositorio de actas"
+        desc="Consulte, filtre y descargue las actas digitales de entrega, devolución y cambio."
+      >
         {(me?.can("actas_entrega") || me?.can("actas_devolucion")) && (
           <Button size="sm" asChild className="gap-1.5">
             <Link to="/actas/nueva">
@@ -305,7 +338,9 @@ function Repositorio() {
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.2 font-mono text-[10px]",
-                    active ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground",
+                    active
+                      ? "bg-primary/15 text-primary font-semibold"
+                      : "bg-muted text-muted-foreground",
                   )}
                 >
                   {count}
@@ -385,7 +420,11 @@ function Repositorio() {
           onChange={(e) =>
             nav({
               to: "/actas",
-              search: (prev) => ({ ...prev, tecnico: e.target.value || undefined, page: undefined }),
+              search: (prev) => ({
+                ...prev,
+                tecnico: e.target.value || undefined,
+                page: undefined,
+              }),
               replace: true,
             })
           }
@@ -441,7 +480,12 @@ function Repositorio() {
       </div>
 
       {/* Table */}
-      <div className={cn("overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs transition-opacity", q.isFetching && !q.isLoading ? "opacity-60" : "")}>
+      <div
+        className={cn(
+          "overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs transition-opacity",
+          q.isFetching && !q.isLoading ? "opacity-60" : "",
+        )}
+      >
         <table className="w-full text-sm">
           <thead className="border-b border-border/70 bg-muted/35 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -453,7 +497,9 @@ function Repositorio() {
                     onCheckedChange={(c) =>
                       setSel(
                         c
-                          ? Array.from(new Set([...sel, ...descargables.slice(0, MAX_ZIP).map((a) => a.id)]))
+                          ? Array.from(
+                              new Set([...sel, ...descargables.slice(0, MAX_ZIP).map((a) => a.id)]),
+                            )
                           : sel.filter((id) => !filas.some((a) => a.id === id)),
                       )
                     }
@@ -483,7 +529,9 @@ function Repositorio() {
                     <Checkbox
                       aria-label={`Seleccionar acta ${a.numero}`}
                       checked={sel.includes(a.id)}
-                      onCheckedChange={(c) => setSel(c ? [...sel, a.id] : sel.filter((x) => x !== a.id))}
+                      onCheckedChange={(c) =>
+                        setSel(c ? [...sel, a.id] : sel.filter((x) => x !== a.id))
+                      }
                     />
                   )}
                 </td>
@@ -501,11 +549,17 @@ function Repositorio() {
                 <td className="px-4 py-2.5 text-[13px]">
                   <div className="font-medium text-foreground">{a.empleado?.nombre}</div>
                   {a.empleado?.identificacion && (
-                    <div className="font-mono text-[11px] text-muted-foreground">CC {a.empleado.identificacion}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      CC {a.empleado.identificacion}
+                    </div>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">{a.tecnico_nombre ?? "—"}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{fmtFecha(a.created_at)}</td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                  {a.tecnico_nombre ?? "—"}
+                </td>
+                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                  {fmtFecha(a.created_at)}
+                </td>
                 <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                   {a.firmado_at ? (
                     fmtFecha(a.firmado_at, true)
@@ -516,7 +570,10 @@ function Repositorio() {
                 <td className="px-4 py-2.5">
                   <EstadoActa estado={a.estado} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right" onClick={(ev) => ev.stopPropagation()}>
+                <td
+                  className="whitespace-nowrap px-4 py-2.5 text-right"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
                   <div className="inline-flex items-center gap-1">
                     {a.estado === "pendiente" && me?.can("firmas_capturar") && (
                       <Button
@@ -526,10 +583,16 @@ function Repositorio() {
                         onClick={async () => {
                           try {
                             const r = await enlace({ data: { actaId: a.id } });
-                            const link = `${window.location.origin}/firmar/${r.token}`;
+                            const link = `${r.origin || window.location.origin}/firmar/${r.token}`;
                             const copiado = await copiarTexto(link);
-                            if (copiado) toast.success("Enlace de firma copiado (15 minutos). Si vence, genere y envíe uno nuevo.");
-                            else toast.info("Enlace generado (15 minutos). Si vence, genere y envíe uno nuevo.");
+                            if (copiado)
+                              toast.success(
+                                "Enlace de firma copiado (15 minutos). Si vence, genere y envíe uno nuevo.",
+                              );
+                            else
+                              toast.info(
+                                "Enlace generado (15 minutos). Si vence, genere y envíe uno nuevo.",
+                              );
                           } catch (err) {
                             toast.error(errMsg(err));
                           }
@@ -621,13 +684,24 @@ function Repositorio() {
   );
 }
 
-function AnularDialog({ acta, onClose, onDone }: { acta: Fila | null; onClose: () => void; onDone: () => void }) {
+function AnularDialog({
+  acta,
+  onClose,
+  onDone,
+}: {
+  acta: Fila | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const [motivo, setMotivo] = useState("");
   const [loading, setLoading] = useState(false);
   async function confirmar() {
     if (!acta) return;
     setLoading(true);
-    const { error } = await supabase.rpc("anular_acta", { p_acta: acta.id, p_motivo: motivo.trim() });
+    const { error } = await supabase.rpc("anular_acta", {
+      p_acta: acta.id,
+      p_motivo: motivo.trim(),
+    });
     setLoading(false);
     if (error) return toast.error(errMsg(error));
     toast.success(`Acta #${acta.numero} anulada`);
@@ -649,7 +723,9 @@ function AnularDialog({ acta, onClose, onDone }: { acta: Fila | null; onClose: (
           <DialogTitle>Anular acta #{acta?.numero}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          {acta?.estado === "firmada" ? "El acta está firmada: revise después el estado de sus equipos. " : ""}
+          {acta?.estado === "firmada"
+            ? "El acta está firmada: revise después el estado de sus equipos. "
+            : ""}
           Esta acción queda registrada en la auditoría.
         </p>
         <Textarea

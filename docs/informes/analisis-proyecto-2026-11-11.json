@@ -1,0 +1,453 @@
+{
+  "metadata": {
+    "date": "2026-11-11",
+    "baseCommit": "e216e47",
+    "scope": "Árbol de trabajo actual, incluidos cambios preexistentes",
+    "sourceFiles": 117,
+    "sourceLines": 29924,
+    "routeFiles": 24,
+    "migrations": 4,
+    "tables": 21,
+    "rlsPolicies": 42,
+    "triggers": 40,
+    "functions": 38,
+    "tests": {
+      "vitest": 197,
+      "files": 17,
+      "runtime": 4,
+      "typecheck": "passed",
+      "build": "passed in isolated copy",
+      "lintErrors": 32360,
+      "lintWarnings": 26
+    }
+  },
+  "findings": [
+    {
+      "id": "01",
+      "priority": "P1",
+      "area": "Dependencias",
+      "title": "Vite y Rolldown vulnerables si se expone el servidor de desarrollo",
+      "evidence": "Versión y condición verificadas; no se ejecutó un exploit.",
+      "scenario": "El proyecto fija Vite 8.1.5 y fuerza Rolldown 1.2.1. server.host=\"::\" expone el servidor que arranca bun run dev. El aviso GHSA-p4f5-76q4-ffq7, publicado el 10 de noviembre de 2026, incluye estas versiones y exige exposición de red como condición.",
+      "impact": "Un tercero que alcance ese servidor de desarrollo puede ejecutar código en el equipo. Esto no demuestra exposición ni compromiso de la instalación actual, y el aviso no describe el servidor Nitro compilado.",
+      "fix": "Actualizar una combinación soportada y corregida de Vite y Rolldown, retirar o ajustar el override y regenerar el lockfile. Por ejemplo, el aviso indica Vite 8.2.5/8.3.7 con Rolldown 1.2.17, o Vite 8.1.7 con Rolldown 1.1.7. Restringir también el bind de desarrollo a loopback cuando no se necesite LAN.",
+      "refs": [
+        ["package.json", 18],
+        ["package.json", 99],
+        ["vite.config.ts", 8],
+        ["https://github.com/vitejs/vite/security/advisories/GHSA-p4f5-76q4-ffq7"]
+      ]
+    },
+    {
+      "id": "02",
+      "priority": "P1",
+      "area": "Identidad",
+      "title": "El vínculo editable empleado–usuario permite suplantar al receptor",
+      "evidence": "Cambio de vínculo reproducido en PGlite; extremo servidor revisado.",
+      "scenario": "Un auxiliar con empleados_editar actualiza empleados.user_id con su propio UUID. my_empleado_id() devuelve entonces ese empleado. firmarComoEmpleado sólo compara ese vínculo contra context.userId antes de usar el cliente privilegiado.",
+      "impact": "Puede firmar en nombre del receptor sin usar su PIN ni tener firmas_capturar. También puede alterar campos de bloqueo de PIN por escritura directa.",
+      "fix": "Proteger las columnas de autenticación frente a INSERT/UPDATE general. Gestionar el vínculo mediante una operación restringida y validar la identidad y el rol del receptor al firmar. Separar edición de ficha y administración del acceso.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 175],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 224],
+        ["src/lib/firmas.functions.ts", 92]
+      ]
+    },
+    {
+      "id": "03",
+      "priority": "P1",
+      "area": "Firma",
+      "title": "La firma no es idempotente y puede sobrescribir el PDF definitivo",
+      "evidence": "Función real ejecutada en memoria con UPDATE de cero filas; carrera deducida del orden de operaciones.",
+      "scenario": "ejecutarFirma genera y sube firma/PDF a rutas fijas con upsert antes de actualizar el acta pendiente. No comprueba cuántas filas actualiza. La prueba de cero filas devolvió ok:true, hizo dos subidas y registró FIRMA.",
+      "impact": "Dos firmas concurrentes, o firma frente a anulación, pueden devolver éxito falso. La solicitud perdedora puede sobrescribir el archivo de la ganadora, dejando pdf_hash y metadatos que no corresponden al PDF descargado. Las políticas de Storage para authenticated no restringen al service role utilizado aquí.",
+      "fix": "Reservar la operación por acta, usar nombres únicos sin sobrescritura y confirmar con una transición atómica que devuelva la fila. Gestionar recuperación y limpieza de artefactos que no se confirmaron. Añadir pruebas concurrentes con Storage y PostgreSQL reales.",
+      "refs": [
+        ["src/lib/firmas.server.ts", 281],
+        ["src/lib/firmas.server.ts", 300],
+        ["supabase/migrations/20261022120000_mejoras_actas_baja_storage.sql", 72]
+      ]
+    },
+    {
+      "id": "04",
+      "priority": "P1",
+      "area": "Inventario",
+      "title": "La firma aplica movimientos sin revalidar la situación actual",
+      "evidence": "Reproducido en PGlite.",
+      "scenario": "Crear entrega pendiente, enviar el equipo a reparación, desactivar al empleado y luego firmar. El resultado fue equipo asignado a empleado inactivo, conservando reparacion_inicio. Las comprobaciones se hacen al crear líneas, pero no al confirmar la firma.",
+      "impact": "Un documento pendiente puede sobreescribir cambios legítimos posteriores, incluso un estado de baja. El inventario y el responsable pueden quedar inconsistentes.",
+      "fix": "Bloquear acta, empleado y equipos en orden estable y revalidar actividad, propietario, estado y responsable al firmar. Cancelar toda la transacción cuando alguna condición haya cambiado.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 654],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 667],
+        ["src/lib/firmas.server.ts", 262]
+      ]
+    },
+    {
+      "id": "05",
+      "priority": "P1",
+      "area": "Aislamiento",
+      "title": "RPC y referencias de actas permiten cruzar ecosistemas",
+      "evidence": "Dos casos reproducidos en PGlite; requiere datos de más de un ecosistema.",
+      "scenario": "Un auxiliar A no puede leer el equipo B, pero cambiar_estado_equipo(B,...) lo modifica. También pudo añadir un equipo B invisible a un acta A y asignarlo al empleado A. Las funciones SECURITY DEFINER omiten la comprobación owner_id.",
+      "impact": "La protección de SELECT por RLS no basta para estas operaciones privilegiadas. El defecto es latente si sólo existe un ecosistema; el modelo y sus tests sí contemplan varios.",
+      "fix": "Comprobar owner_id dentro de cada RPC y trigger, además de la coherencia de todas las referencias. Extender la revisión a corregir_serie, finalizar_reparacion y anular_acta. Definir si el producto realmente admite múltiples ecosistemas pese al administrador global único.",
+      "refs": [
+        ["supabase/migrations/20261022120000_mejoras_actas_baja_storage.sql", 33],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 625],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 957],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 1018],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 1057]
+      ]
+    },
+    {
+      "id": "06",
+      "priority": "P1",
+      "area": "Identidad",
+      "title": "La recuperación por correo interno puede tomar una cuenta de personal",
+      "evidence": "Confirmado por flujo de código; requiere una cuenta staff con correo interno coincidente.",
+      "scenario": "Si createUser devuelve already, habilitarAccesoEmpleado busca profiles.email y cambia su contraseña sin repetir la comprobación de roles de la rama user_id existente. crearAuxiliar admite el dominio empleados.finesa.local.",
+      "impact": "Si existe una cuenta staff con ese correo y sin empleado vinculado, quien tenga empleados_editar puede generar un PIN para ella y acceder con sus privilegios.",
+      "fix": "Reservar el dominio interno para cuentas de empleados, rechazar roles de personal en todas las ramas y verificar asociación y propietario antes de recuperar una cuenta. No vincular sólo por coincidencia de correo.",
+      "refs": [
+        ["src/lib/usuarios.functions.ts", 319],
+        ["src/lib/usuarios.functions.ts", 327]
+      ]
+    },
+    {
+      "id": "07",
+      "priority": "P1",
+      "area": "Identidad",
+      "title": "El contador de PIN pierde intentos concurrentes",
+      "evidence": "Intercalado de operaciones confirmado por código; no se hizo ataque contra Auth.",
+      "scenario": "Cada solicitud lee pin_intentos, intenta Auth y escribe el valor previo más uno. Varias solicitudes que leen cero pueden terminar guardando uno. El límite de diez peticiones por IP permite más de cinco en paralelo.",
+      "impact": "La promesa de bloqueo tras cinco fallos no se cumple bajo concurrencia. El rate limit por IP reduce volumen, pero no reemplaza el bloqueo por cuenta.",
+      "fix": "Reservar y contabilizar intentos con una RPC atómica por cuenta, revalidar el bloqueo dentro de la misma operación y probar solicitudes simultáneas.",
+      "refs": [
+        ["src/lib/usuarios.functions.ts", 360],
+        ["src/lib/usuarios.functions.ts", 369]
+      ]
+    },
+    {
+      "id": "08",
+      "priority": "P1",
+      "area": "Interfaz",
+      "title": "La carga masiva conserva datos al cambiar de usuario",
+      "evidence": "Confirmado por estado y ciclo de sesión en código; pendiente recorrido de navegador.",
+      "scenario": "cargaMasivaStore es un singleton que conserva archivo, filas, contexto, permisos y validación. SIGNED_OUT y cambio de usuario limpian React Query, pero no este store.",
+      "impact": "En la misma pestaña, una segunda cuenta con acceso al módulo puede ver los datos de la anterior y continuar con un contexto obsoleto. RLS sigue protegiendo operaciones que lo implementan, pero no elimina la exposición en memoria.",
+      "fix": "Asociar el estado a userId/ownerId, reiniciarlo en cambio de identidad y cancelación de sesión, y revalidar identidad y contexto antes de procesar.",
+      "refs": [
+        ["src/lib/cargaMasivaStore.ts", 40],
+        ["src/routes/__root.tsx", 201],
+        ["src/components/ImportExcel.tsx", 148]
+      ]
+    },
+    {
+      "id": "09",
+      "priority": "P1",
+      "area": "Firma",
+      "title": "Una firma cancelada puede enviarse con el lienzo vacío",
+      "evidence": "Confirmado por transición de estado en código; pendiente recorrido de navegador.",
+      "scenario": "Dibujar, cancelar y reabrir Firma presencial. El canvas nuevo queda vacío, pero el estado firma no se limpia y habilita la confirmación con la imagen anterior.",
+      "impact": "Se puede enviar una firma que el usuario acaba de cancelar y que ya no aparece en pantalla.",
+      "fix": "Limpiar la captura al abrir, cancelar y cambiar de acta. Unificar la identidad del documento y el estado de firma. Probar expresamente dibujar–cancelar–reabrir.",
+      "refs": [
+        ["src/routes/_authenticated/actas.$id.tsx", 175],
+        ["src/routes/_authenticated/actas.$id.tsx", 238],
+        ["src/components/SignaturePad.tsx", 11]
+      ]
+    },
+    {
+      "id": "10",
+      "priority": "P2",
+      "area": "Documentos",
+      "title": "El PDF de actas pierde contenido al crecer",
+      "evidence": "Función real instrumentada en memoria.",
+      "scenario": "generarPdf crea una sola página y reduce y por cada equipo, mientras las firmas quedan en posiciones fijas. Con veinte equipos se generó una página, y mínimo -231 y 29 dibujos de texto fuera de la página. También se recortan textos y se omiten observaciones si falta espacio.",
+      "impact": "Un PDF firmado puede omitir equipos, accesorios o anotaciones y superponer contenido con las firmas.",
+      "fix": "Paginar, ajustar texto al ancho disponible y reservar el bloque de firma. Verificar por renderizado actas pequeñas, medianas y extensas, con textos largos y caracteres especiales.",
+      "refs": [
+        ["src/lib/firmas.server.ts", 174],
+        ["src/lib/firmas.server.ts", 200]
+      ]
+    },
+    {
+      "id": "11",
+      "priority": "P2",
+      "area": "Identidad",
+      "title": "Cédulas con separadores pueden quedar sin acceso",
+      "evidence": "Confirmado por consulta y esquema; el mock actual oculta el defecto.",
+      "scenario": "Se habilita un empleado con identificación 1.234.567. La entrada se normaliza a 1234567, pero se busca identificacion ILIKE %4567% en el texto original, que no coincide.",
+      "impact": "Un PIN emitido correctamente no permite entrar. La unicidad actual tampoco equipara variantes con y sin separadores.",
+      "fix": "Persistir una identificación canónica, única e indexada, y buscarla por igualdad. Revisar y resolver colisiones antes de migrar datos existentes.",
+      "refs": [
+        ["src/lib/usuarios.functions.ts", 357],
+        ["tests/unit/usuarios.functions.test.ts", 423],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 178]
+      ]
+    },
+    {
+      "id": "12",
+      "priority": "P2",
+      "area": "Interfaz",
+      "title": "La paginación de actas cambia la URL pero no las filas",
+      "evidence": "Confirmado por flujo de estado; pendiente navegador.",
+      "scenario": "usePaginacion inicializa página 1. Los controles sólo modifican search.page/pageSize; la consulta usa pag.desde/hasta, y no se sincroniza el hook ni se consume search.page.",
+      "impact": "Siguiente sigue mostrando las primeras 25 actas. Cambiar tamaño tampoco actualiza el estado mientras el componente permanece montado.",
+      "fix": "Usar URL como única fuente de página y tamaño. Verificar segunda página, tamaño 50, enlaces directos y regreso desde un detalle.",
+      "refs": [
+        ["src/routes/_authenticated/actas.index.tsx", 110],
+        ["src/routes/_authenticated/actas.index.tsx", 199],
+        ["src/routes/_authenticated/actas.index.tsx", 597],
+        ["src/components/DataTablePagination.tsx", 10]
+      ]
+    },
+    {
+      "id": "13",
+      "priority": "P2",
+      "area": "Reportes",
+      "title": "Las actas de cambio se contabilizan como devoluciones completas",
+      "evidence": "Confirmado por consultas y cálculo.",
+      "scenario": "Los reportes no seleccionan direccion por ítem. Si el documento no es tipo entrega, sus equipos cuentan como devueltos. Un cambio de un equipo por otro produce cero entregados y dos devueltos.",
+      "impact": "Indicadores y exportaciones difieren de los movimientos reales del inventario.",
+      "fix": "Contar por acta_items.direccion y conservar el tipo documental como dimensión separada. Añadir fixture con entrega, devolución y cambio mixto.",
+      "refs": [
+        ["src/routes/_authenticated/reportes.tsx", 277],
+        ["src/routes/_authenticated/reportes.tsx", 301],
+        ["src/routes/_authenticated/reportes.tsx", 599],
+        ["src/routes/_authenticated/reportes.tsx", 631]
+      ]
+    },
+    {
+      "id": "14",
+      "priority": "P2",
+      "area": "Compras",
+      "title": "La recepción acepta cantidades negativas y supera lo pedido",
+      "evidence": "Reproducido en PGlite.",
+      "scenario": "Una línea de cantidad 1 recibe tres seriales y p_sin_serial=-2. La suma validada es uno, pero se insertan tres equipos. Resultado: cantidad=1 y recibida=3.",
+      "impact": "Un llamador directo de la RPC puede sobre-recibir y desalinear inventario y pedido, aunque la interfaz limite números negativos.",
+      "fix": "Validar p_sin_serial>=0, cantidades y arrays. Añadir restricciones de cantidad positiva y recibida entre cero y cantidad; proteger contadores contra escritura directa.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 1128],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 1132]
+      ]
+    },
+    {
+      "id": "15",
+      "priority": "P2",
+      "area": "Autorización",
+      "title": "Suspender el perfil no corta todas las lecturas directas",
+      "evidence": "Reproducido en PGlite con identidad autenticada.",
+      "scenario": "Con profiles.activo=false, un auxiliar conserva SELECT de sus equipos porque my_owner_id y varias políticas no verifican actividad.",
+      "impact": "Un JWT todavía válido puede seguir leyendo datos por la API aunque la navegación o las funciones de servidor bloqueen la cuenta. No se verificó duración efectiva de sesiones en el despliegue.",
+      "fix": "Aplicar actividad en helpers/políticas y RPC del empleado, además de gestionar sesiones. Probar accesos directos con un token emitido antes de suspender.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 354],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 220],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 540]
+      ]
+    },
+    {
+      "id": "16",
+      "priority": "P2",
+      "area": "Inventario",
+      "title": "Un cambio admite líneas sin dirección y se firma sin movimiento",
+      "evidence": "Reproducido en PGlite.",
+      "scenario": "direccion acepta NULL. NULL NOT IN (...) no activa la excepción. Se firmó un cambio con dirección nula y el equipo siguió disponible, sin empleado.",
+      "impact": "Documento firmado y movimiento efectivo dejan de corresponder.",
+      "fix": "Rechazar NULL de forma explícita y usar NOT NULL con enum o restricción. Definir y validar si un cambio exige ambos sentidos.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 628],
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 667]
+      ]
+    },
+    {
+      "id": "17",
+      "priority": "P2",
+      "area": "Firma",
+      "title": "El token se consume antes de completar una firma recuperable",
+      "evidence": "Confirmado por orden de operaciones.",
+      "scenario": "firmarConToken marca used_at antes de validar completamente PNG, generar PDF, subir archivos y confirmar el acta.",
+      "impact": "Un error de entrada o una caída transitoria deja el documento pendiente y el enlace inutilizable; exige intervención para emitir otro.",
+      "fix": "Separar reserva temporal y consumo definitivo, validar antes de reservar y diseñar recuperación segura e idempotente.",
+      "refs": [
+        ["src/lib/firmas.functions.ts", 60],
+        ["src/lib/firmas.server.ts", 264]
+      ]
+    },
+    {
+      "id": "18",
+      "priority": "P2",
+      "area": "Errores",
+      "title": "Varias operaciones críticas ignoran errores y reportan éxito",
+      "evidence": "Confirmado por inspección de las ramas.",
+      "scenario": "cargarActaCompleta ignora error de acta_items; registrarAuditoria no comprueba el INSERT; actualizar permisos borra y reinserta sin transacción; actualizar firma puede borrar el recurso antiguo aunque falle guardar el nuevo path.",
+      "impact": "PDF sin equipos, acciones sin trazabilidad, permisos perdidos o firma rota. Un array de permisos duplicados puede fallar por unicidad tras el borrado y aun así devolver éxito.",
+      "fix": "Comprobar todos los resultados, usar transacciones para cambios de permisos y finalizar metadatos antes de limpiar recursos anteriores. Las pantallas deben distinguir fallo de lectura y ausencia de datos.",
+      "refs": [
+        ["src/lib/firmas.server.ts", 101],
+        ["src/lib/firmas.server.ts", 113],
+        ["src/lib/usuarios.functions.ts", 133],
+        ["src/lib/ajustes.functions.ts", 220],
+        ["src/routes/_authenticated/mi-portal.tsx", 40]
+      ]
+    },
+    {
+      "id": "19",
+      "priority": "P2",
+      "area": "Validación",
+      "title": "Un PNG pequeño puede declarar dimensiones desmesuradas",
+      "evidence": "Cabecera de 30000×30000 aceptada con 3062 bytes; no se ejecutó descompresión grande.",
+      "scenario": "La validación limita bytes comprimidos y algunas cabeceras, pero no dimensiones ni píxeles. pdf.embedPng entrega los datos a un decodificador que reserva memoria según ancho y alto.",
+      "impact": "Una firma suministrada por una cuenta autorizada o por un portador de token puede consumir memoria excesiva y afectar disponibilidad.",
+      "fix": "Limitar ancho, alto y píxeles antes de decodificar y validar estructura. No usar un tamaño mínimo de archivo como prueba de que existe un trazo.",
+      "refs": [
+        ["src/lib/security.server.ts", 63],
+        ["src/lib/firmas.server.ts", 264]
+      ]
+    },
+    {
+      "id": "20",
+      "priority": "P2",
+      "area": "Transacciones",
+      "title": "Pedidos y préstamos pueden quedar parcialmente creados",
+      "evidence": "Confirmado por llamadas separadas; no se indujo fallo en datos reales.",
+      "scenario": "Pedidos inserta cabecera y luego líneas sin rollback. La contingencia cambia primero el equipo a reparación y crea después cabecera e ítems. Reintentar tras un fallo parcial puede duplicar cabeceras.",
+      "impact": "Pedidos vacíos, préstamos incompletos y estado de equipo distinto de lo comunicado al usuario.",
+      "fix": "Crear cabeceras y líneas mediante RPC transaccionales e idempotentes. Definir qué debe ocurrir con reparación si no puede crearse el préstamo.",
+      "refs": [
+        ["src/components/Pedidos.tsx", 166],
+        ["src/routes/_authenticated/equipos.$id.tsx", 1115],
+        ["src/routes/_authenticated/equipos.$id.tsx", 1138]
+      ]
+    },
+    {
+      "id": "21",
+      "priority": "P2",
+      "area": "Reportes",
+      "title": "Exportaciones e historiales pueden truncarse sin aviso",
+      "evidence": "Límites de consulta confirmados; depende del volumen y máximo real de PostgREST.",
+      "scenario": "Directorio usa limit(5000), exportación de equipos limit(2000), y varias respuestas de certificación no paginan. El runtime de referencia fija máximo 1000 filas. Algunos historiales recortan IDs a 200.",
+      "impact": "Se exportan menos registros de los esperados. Una respuesta de certificación no recuperada puede mostrarse como pendiente.",
+      "fix": "Paginar con orden estable o agregar en servidor, reutilizar fetchAll y contrastar cantidad obtenida con count exacto. Verificar límites efectivos del entorno.",
+      "refs": [
+        ["src/routes/_authenticated/empleados.index.tsx", 158],
+        ["src/routes/_authenticated/equipos.index.tsx", 673],
+        ["src/components/Certificaciones.tsx", 30],
+        ["src/routes/_authenticated/empleados.$id.tsx", 138]
+      ]
+    },
+    {
+      "id": "22",
+      "priority": "P2",
+      "area": "Interfaz",
+      "title": "La firma remota no invalida el detalle abierto",
+      "evidence": "Confirmado por discrepancia entre claves de consultas.",
+      "scenario": "Realtime invalida actas/equipos/panel, mientras los detalles usan acta/id y equipo/id y el portal otra clave. El refresco por enfoque está desactivado.",
+      "impact": "El técnico puede continuar viendo pendiente y sin PDF un acta que el empleado ya firmó hasta navegar o recargar.",
+      "fix": "Centralizar claves e invalidación por entidad y relaciones. Probar el flujo entre dos sesiones y la ficha abierta.",
+      "refs": [
+        ["src/routes/_authenticated/route.tsx", 137],
+        ["src/routes/_authenticated/actas.$id.tsx", 43],
+        ["src/router.tsx", 11]
+      ]
+    },
+    {
+      "id": "23",
+      "priority": "P1",
+      "area": "Firma",
+      "title": "La ruta de firma del técnico procede de un dato controlable",
+      "evidence": "Confirmado por INSERT y descarga privilegiada; requiere conocer una ruta de firma válida.",
+      "scenario": "actas_before_insert fija tecnico_nombre pero no toma firma_path del perfil. El cliente puede aportar tecnico_firma_path y el servidor lo descarga con service role para incluirlo en el PDF. Además, guardarMiFirma elimina el archivo anterior, que puede seguir referenciado por actas pendientes.",
+      "impact": "Puede incorporarse una imagen de firma ajena si se conoce su ruta. Si el técnico actualiza su firma antes de que se firme un acta pendiente, se pierde la imagen referenciada y la generación puede continuar sin su firma, porque no comprueba el error de descarga.",
+      "fix": "Derivar técnico y firma en servidor o trigger a partir de identidad autorizada; verificar pertenencia del objeto y preservar una copia inmutable por acta.",
+      "refs": [
+        ["supabase/migrations/20261021000000_esquema_consolidado.sql", 589],
+        ["src/lib/firmas.server.ts", 273],
+        ["src/lib/ajustes.functions.ts", 220]
+      ]
+    },
+    {
+      "id": "24",
+      "priority": "P2",
+      "area": "Tooling",
+      "title": "El lint no constituye hoy una barrera de calidad útil",
+      "evidence": "Ejecutado con exclusión adicional de cachés.",
+      "scenario": "eslint . recorre .cache/bun porque sólo ignora dist, .output y .vinxi; se interrumpió esa ejecución al comprobar que analizaba dependencias cacheadas. Excluyendo .cache y .tanstack: 32360 errores y 26 avisos en 149 archivos. 32358 errores son Prettier; 29356 son exactamente Delete CR.",
+      "impact": "El ruido de fin de línea y formato oculta problemas. Sólo dos errores no son de formato: any explícito y prefer-const. Los avisos incluyen ocho de dependencias de hooks y diecisiete de Fast Refresh; no equivalen todos a fallos funcionales.",
+      "fix": "Excluir cachés y generados de forma coherente, normalizar política de fin de línea y formato en un cambio separado, corregir errores reales y añadir lint/typecheck/test/build al proceso de integración.",
+      "refs": [
+        ["eslint.config.js", 9],
+        [".prettierrc", 1],
+        ["src/routes/_authenticated/estadisticas.tsx", 171],
+        ["tests/helpers/pglite.ts", 55]
+      ]
+    },
+    {
+      "id": "25",
+      "priority": "P2",
+      "area": "Operación",
+      "title": "Cambiar la carpeta de configuración no aísla los datos Docker",
+      "evidence": "Confirmado por configuración; no se preparó una segunda instalación.",
+      "scenario": "FINESA_LOCAL_DIR cambia archivos de configuración, pero Compose fija project-name=finesa-local, volúmenes finesa-db/finesa-storage y nombres de contenedores. prepare sólo comprueba .env antes de generar claves.",
+      "impact": "Preparar otra carpeta o perder .env y repetir prepare puede reutilizar datos anteriores con claves nuevas y romper el arranque o Auth/Storage.",
+      "fix": "Vincular configuración y volúmenes mediante identificador persistente; detectar datos existentes antes de generar secretos. Si sólo se soporta una instalación, impedir explícitamente una segunda preparación.",
+      "refs": [
+        ["scripts/local.mjs", 21],
+        ["scripts/local.mjs", 63],
+        ["deploy/local.override.yml", 6]
+      ]
+    },
+    {
+      "id": "26",
+      "priority": "P2",
+      "area": "Dependencias",
+      "title": "La importación utiliza una versión de XLSX con avisos de seguridad",
+      "evidence": "Versión y uso de lectura verificados; no se procesaron archivos maliciosos.",
+      "scenario": "xlsx 0.18.5 está afectado por CVE-2023-30533 (contaminación de prototipos, corregida desde 0.19.3) y CVE-2024-22363 (ReDoS, corregida desde 0.20.2). cargaMasiva.ts llama XLSX.read sobre archivos aportados por usuarios.",
+      "impact": "El riesgo concreto está en abrir un archivo preparado por un tercero dentro de la sesión del operador; puede alterar el comportamiento del lector o bloquear la pestaña. No se demostró ejecución en servidor ni acceso a la base de datos a partir de estos avisos.",
+      "fix": "Adoptar una distribución mantenida y corregida desde la fuente oficial o sustituir el lector tras verificar compatibilidad. Los avisos indican que el paquete histórico xlsx de npm no proporciona las correcciones. Mantener límites de archivo y considerar lectura en un Worker.",
+      "refs": [
+        ["package.json", 78],
+        ["src/lib/cargaMasiva.ts", 200],
+        ["https://github.com/advisories/GHSA-4r6h-8v6p-xvw6"],
+        ["https://github.com/advisories/GHSA-5pgg-2g8v-p4x9"]
+      ]
+    }
+  ],
+  "supplemental": [
+    [
+      "Migraciones de prueba incompletas",
+      "tests/helpers/pglite.ts:65–72 enumera tres migraciones y omite la cuarta, que crea buckets. El rol service_role emulado no tiene BYPASSRLS. PGlite no sustituye Auth, PostgREST, Storage ni conexiones concurrentes reales."
+    ],
+    [
+      "Secuencia de periféricos",
+      "Crear equipo sin serie falló en PGlite por falta de USAGE sobre periferico_seq; puede funcionar en Supabase por privilegios predeterminados, por lo que no se afirma fallo del despliegue. Además lpad(nextval(...),4,...) trunca números desde 10000 y puede generar códigos repetidos (esquema:402)."
+    ],
+    [
+      "Paz y salvo y reparación",
+      "La baja de empleado sólo revisa equipos asignados (esquema:494), pero reparación puede conservar empleado_id. finalizar_reparacion con reasignación no revalida actividad. Conviene definir y probar responsabilidad durante reparación."
+    ],
+    [
+      "Concurrencia pendiente de comprobar",
+      "La exclusión de un equipo entre actas pendientes usa EXISTS sin bloqueo ni restricción única; la de fallas abiertas es similar. Son carreras plausibles, no reproducidas con conexiones simultáneas de PostgreSQL."
+    ],
+    [
+      "Fechas y zona horaria",
+      "Los filtros construyen hastaT23:59:59 sin zona. Debe confirmarse la zona efectiva de Postgres; para Colombia conviene usar intervalos de inicio local a inicio del día siguiente, convertidos explícitamente."
+    ],
+    [
+      "Índices y escala",
+      "Evaluar con EXPLAIN y datos representativos acta_items.equipo_id, pedido_lineas.pedido_id, reparaciones.equipo_id y tokens_firma.acta_id. No se midieron latencias ni carga productiva."
+    ],
+    [
+      "Detalles de interfaz",
+      "La exportación de alistamiento utiliza columnas de baja; hay adjuntos potencialmente huérfanos tras fallar el registro. La importación detecta duplicados de asignación por texto, no siempre por UUID canónico. Verificar con teclado etiquetas, nombres de botones y foco; el viewport impide zoom."
+    ],
+    [
+      "Resolución de Docker",
+      "start-local.mjs admite docker en PATH si falta Program Files, pero local.mjs en Windows siempre utiliza Program Files: una instalación alternativa puede pasar --check y fallar al iniciar."
+    ]
+  ]
+}

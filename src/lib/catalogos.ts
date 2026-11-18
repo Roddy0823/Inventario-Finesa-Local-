@@ -1,3 +1,4 @@
+import { fetchAll } from "./fetchAll";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,11 +11,15 @@ export const catalogosQuery = queryOptions({
   queryKey: ["catalogos"],
   staleTime: 5 * 60_000,
   gcTime: 15 * 60_000,
-  queryFn: async () => {
-    const { data, error } = await supabase.from("catalogo_items").select("id, tipo, nombre, activo").order("nombre");
-    if (error) throw error;
-    return data as CatItem[];
-  },
+  queryFn: () =>
+    fetchAll((a, b) =>
+      supabase
+        .from("catalogo_items")
+        .select("id, tipo, nombre, activo")
+        .order("nombre")
+        .order("id")
+        .range(a, b),
+    ),
 });
 
 export function useCatalogos() {
@@ -45,7 +50,10 @@ export function useCatalogos() {
     [mapActivos, mapTodos],
   );
 
-  const nombre = useCallback((id?: string | null): string => (id ? (mapNombre.get(id) ?? "—") : "—"), [mapNombre]);
+  const nombre = useCallback(
+    (id?: string | null): string => (id ? (mapNombre.get(id) ?? "—") : "—"),
+    [mapNombre],
+  );
 
   return { ...q, all, byTipo, nombre };
 }

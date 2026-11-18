@@ -1,6 +1,11 @@
+import { hoyColombia, inicioDiaColombia, finExclusivoColombia } from "@/lib/fechas";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { fetchAll } from "@/lib/fetchAll";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import {
+  DataTablePagination,
+  FilasSkeleton,
+  usePaginacion,
+} from "@/components/DataTablePagination";
 import { Fragment, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/me";
@@ -29,7 +34,7 @@ const RAPIDOS = [
   ["30", "Últimos 30 días"],
   ["todos", "Todos"],
 ] as const;
-const isoDia = (d: Date) => d.toISOString().slice(0, 10);
+const isoDia = (d: Date) => hoyColombia(d);
 
 export function AuditoriaPanel() {
   const { data: me } = useMe();
@@ -38,7 +43,9 @@ export function AuditoriaPanel() {
   const [hasta, setHasta] = useState("");
   const [rapido, setRapido] = useState<string>("todos");
   const [abierto, setAbierto] = useState<number | null>(null);
-  const [detalles, setDetalles] = useState<Record<number, { antes: unknown; despues: unknown }>>({});
+  const [detalles, setDetalles] = useState<Record<number, { antes: unknown; despues: unknown }>>(
+    {},
+  );
   const [cargandoDetalle, setCargandoDetalle] = useState<number | null>(null);
 
   const pag = usePaginacion({ tabla, desde, hasta });
@@ -61,14 +68,14 @@ export function AuditoriaPanel() {
     T extends {
       eq: (c: string, v: string) => T;
       gte: (c: string, v: string) => T;
-      lte: (c: string, v: string) => T;
+      lt: (c: string, v: string) => T;
     },
   >(
     s: T,
   ) => {
     if (tabla) s = s.eq("tabla", tabla);
-    if (desde) s = s.gte("created_at", desde);
-    if (hasta) s = s.lte("created_at", hasta + "T23:59:59");
+    if (desde) s = s.gte("created_at", inicioDiaColombia(desde));
+    if (hasta) s = s.lt("created_at", finExclusivoColombia(hasta));
     return s;
   };
 
@@ -91,7 +98,9 @@ export function AuditoriaPanel() {
       const { data, count, error } = await filtrar(
         supabase
           .from("auditoria")
-          .select("id, created_at, user_id, tabla, accion, registro_id, detalle", { count: "exact" }),
+          .select("id, created_at, user_id, tabla, accion, registro_id, detalle", {
+            count: "exact",
+          }),
       )
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
@@ -145,7 +154,8 @@ export function AuditoriaPanel() {
     );
   }
 
-  if (!me?.isAdmin) return <p className="text-muted-foreground">Solo el Administrador puede ver la auditoría.</p>;
+  if (!me?.isAdmin)
+    return <p className="text-muted-foreground">Solo el Administrador puede ver la auditoría.</p>;
   const filas = (q.data?.filas ?? []).map((r) => ({ ...r, usuario: nom(r.user_id) }));
 
   return (
@@ -217,8 +227,13 @@ export function AuditoriaPanel() {
             {q.isLoading && <FilasSkeleton columnas={5} />}
             {filas.map((r) => (
               <Fragment key={r.id}>
-                <tr className="cursor-pointer hover:bg-muted/50" onClick={() => void toggleFila(r.id)}>
-                  <td className="whitespace-nowrap px-4 py-2 text-xs">{fmtFecha(r.created_at, true)}</td>
+                <tr
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => void toggleFila(r.id)}
+                >
+                  <td className="whitespace-nowrap px-4 py-2 text-xs">
+                    {fmtFecha(r.created_at, true)}
+                  </td>
                   <td className="px-4 py-2">{r.usuario}</td>
                   <td className="px-4 py-2">{TABLAS[r.tabla] ?? r.tabla}</td>
                   <td className="px-4 py-2 font-mono text-xs">{r.accion}</td>
@@ -230,11 +245,15 @@ export function AuditoriaPanel() {
                   <tr>
                     <td colSpan={5} className="bg-muted/40 px-4 py-3">
                       {cargandoDetalle === r.id ? (
-                        <p className="text-xs text-muted-foreground">Cargando diferencias de auditoría…</p>
+                        <p className="text-xs text-muted-foreground">
+                          Cargando diferencias de auditoría…
+                        </p>
                       ) : detalles[r.id]?.antes || detalles[r.id]?.despues ? (
                         <div className="grid gap-3 text-xs md:grid-cols-2">
                           <div>
-                            <span className="font-semibold text-muted-foreground">Estado previo:</span>
+                            <span className="font-semibold text-muted-foreground">
+                              Estado previo:
+                            </span>
                             <pre className="mt-1 max-h-60 overflow-auto rounded bg-card p-2 font-mono text-[11px]">
                               {detalles[r.id]?.antes
                                 ? JSON.stringify(detalles[r.id]?.antes, null, 2)
@@ -242,7 +261,9 @@ export function AuditoriaPanel() {
                             </pre>
                           </div>
                           <div>
-                            <span className="font-semibold text-muted-foreground">Estado posterior:</span>
+                            <span className="font-semibold text-muted-foreground">
+                              Estado posterior:
+                            </span>
                             <pre className="mt-1 max-h-60 overflow-auto rounded bg-card p-2 font-mono text-[11px]">
                               {detalles[r.id]?.despues
                                 ? JSON.stringify(detalles[r.id]?.despues, null, 2)
@@ -251,7 +272,9 @@ export function AuditoriaPanel() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground">Sin diferencias registradas para este evento.</p>
+                        <p className="text-xs text-muted-foreground">
+                          Sin diferencias registradas para este evento.
+                        </p>
                       )}
                     </td>
                   </tr>

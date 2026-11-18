@@ -90,7 +90,9 @@ export function CommandPalette() {
         supabase
           .from("equipos")
           .select("id, serie, modelo, activo_fijo, nombre_equipo, estado")
-          .or(`serie.ilike.%${q}%,modelo.ilike.%${q}%,activo_fijo.ilike.%${q}%,nombre_equipo.ilike.%${q}%`)
+          .or(
+            `serie.ilike.%${q}%,modelo.ilike.%${q}%,activo_fijo.ilike.%${q}%,nombre_equipo.ilike.%${q}%`,
+          )
           .limit(5),
         supabase
           .from("empleados")
@@ -129,7 +131,10 @@ export function CommandPalette() {
     limpiarActividadGlobal();
     try {
       await Promise.race([
-        supabase.rpc("log_evento", { p_accion: "LOGOUT", p_detalle: "Cierre de sesión desde paleta de comandos" }),
+        supabase.rpc("log_evento", {
+          p_accion: "LOGOUT",
+          p_detalle: "Cierre de sesión desde paleta de comandos",
+        }),
         new Promise((resolve) => setTimeout(resolve, 800)),
       ]);
     } catch {
@@ -161,7 +166,10 @@ export function CommandPalette() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-2xl overflow-hidden border-border/80 bg-popover/95 p-0 shadow-2xl backdrop-blur-xl [&>button]:hidden">
         <DialogTitle className="sr-only">Paleta de comandos y búsqueda rápida</DialogTitle>
-        <CommandPrimitive className="flex h-full w-full flex-col overflow-hidden bg-transparent text-popover-foreground" loop>
+        <CommandPrimitive
+          className="flex h-full w-full flex-col overflow-hidden bg-transparent text-popover-foreground"
+          loop
+        >
           {/* Input Header */}
           <div className="flex items-center gap-2.5 border-b border-border/70 bg-muted/20 px-4 py-3">
             {liveSearch.isFetching ? (
@@ -209,7 +217,9 @@ export function CommandPalette() {
                       <CommandPrimitive.Item
                         key={`eq-${e.id}`}
                         value={`equipo ${e.serie} ${e.modelo ?? ""} ${e.activo_fijo ?? ""} ${e.nombre_equipo ?? ""}`}
-                        onSelect={() => run(() => nav({ to: "/equipos/$id", params: { id: e.id } }))}
+                        onSelect={() =>
+                          run(() => nav({ to: "/equipos/$id", params: { id: e.id } }))
+                        }
                         className={itemCls}
                       >
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/80 text-primary">
@@ -217,7 +227,9 @@ export function CommandPalette() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-semibold text-foreground">{e.serie}</span>
+                            <span className="font-mono text-xs font-semibold text-foreground">
+                              {e.serie}
+                            </span>
                             {e.activo_fijo && (
                               <span className="rounded bg-muted px-1.5 py-0.2 font-mono text-[10px] text-muted-foreground">
                                 AF: {e.activo_fijo}
@@ -225,7 +237,8 @@ export function CommandPalette() {
                             )}
                           </div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {[e.modelo, e.nombre_equipo].filter(Boolean).join(" · ") || "Ver hoja de vida del equipo"}
+                            {[e.modelo, e.nombre_equipo].filter(Boolean).join(" · ") ||
+                              "Ver hoja de vida del equipo"}
                           </div>
                         </div>
                         <EstadoEquipo estado={e.estado} />
@@ -240,7 +253,9 @@ export function CommandPalette() {
                       <CommandPrimitive.Item
                         key={`emp-${emp.id}`}
                         value={`empleado ${emp.nombre} ${emp.identificacion ?? ""} ${emp.cargo ?? ""}`}
-                        onSelect={() => run(() => nav({ to: "/empleados/$id", params: { id: emp.id } }))}
+                        onSelect={() =>
+                          run(() => nav({ to: "/empleados/$id", params: { id: emp.id } }))
+                        }
                         className={itemCls}
                       >
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/80 text-primary">
@@ -278,7 +293,9 @@ export function CommandPalette() {
                             <span className="font-mono text-xs text-primary">#{a.numero}</span> ·{" "}
                             {a.empleado?.nombre ?? "Empleado"}
                           </div>
-                          <div className="text-xs capitalize text-muted-foreground">Acta de {a.tipo}</div>
+                          <div className="text-xs capitalize text-muted-foreground">
+                            Acta de {a.tipo}
+                          </div>
                         </div>
                         <EstadoActa estado={a.estado} />
                       </CommandPrimitive.Item>
@@ -307,7 +324,11 @@ export function CommandPalette() {
                 )}
                 <CommandPrimitive.Item
                   value="ver equipos disponibles en stock"
-                  onSelect={() => run(() => nav({ to: "/equipos", search: { tab: "activos", estado: "disponible" } }))}
+                  onSelect={() =>
+                    run(() =>
+                      nav({ to: "/equipos", search: { tab: "activos", estado: "disponible" } }),
+                    )
+                  }
                   className={itemCls}
                 >
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-success/15 text-success">
@@ -319,7 +340,9 @@ export function CommandPalette() {
                 {can("repositorio_ver") && (
                   <CommandPrimitive.Item
                     value="actas pendientes de firma"
-                    onSelect={() => run(() => nav({ to: "/actas", search: { estado: "pendiente" } }))}
+                    onSelect={() =>
+                      run(() => nav({ to: "/actas", search: { estado: "pendiente" } }))
+                    }
                     className={itemCls}
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning">
@@ -523,7 +546,9 @@ export function CommandPalette() {
             </div>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <kbd className="rounded border border-border/80 bg-background px-1 py-0.5 font-mono text-[10px]">↑↓</kbd>
+                <kbd className="rounded border border-border/80 bg-background px-1 py-0.5 font-mono text-[10px]">
+                  ↑↓
+                </kbd>
                 <span>Navegar</span>
               </span>
               <span className="flex items-center gap-1">

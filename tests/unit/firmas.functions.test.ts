@@ -28,20 +28,33 @@ const call = (fn: unknown, data: unknown, context?: unknown) => (fn as Fn)({ dat
 let admin: SupabaseMock;
 let row: Record<string, unknown>;
 beforeEach(() => {
+  vi.stubEnv("LOCAL_ONLY", "false");
+  vi.stubEnv("PUBLIC_SIGNATURE_ORIGIN", "");
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  h.ejecutar.mockClear();
+  h.ejecutar.mockReset();
   h.cargar.mockClear();
-  row = { id: "token-id", token: TOKEN, acta_id: ACTA, used_at: null,
-    created_at: new Date(NOW).toISOString(), expires_at: new Date(NOW + TTL).toISOString() };
-  admin = crearSupabaseMock({ onQuery: (q) => {
-    if (q.op === "select") return { data: row };
-    if (q.op === "update") return { data: [{ id: row.id }] };
-    return {};
-  } });
+  row = {
+    id: "token-id",
+    token: TOKEN,
+    acta_id: ACTA,
+    used_at: null,
+    created_at: new Date(NOW).toISOString(),
+    expires_at: new Date(NOW + TTL).toISOString(),
+  };
+  admin = crearSupabaseMock({
+    onQuery: (q) => {
+      if (q.op === "select") return { data: row };
+      if (q.op === "update") return { data: [{ id: row.id }] };
+      return {};
+    },
+  });
   h.admin = admin as unknown as typeof h.admin;
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 
 describe("vigencia de enlaces de firma", () => {
   it("permite consultar antes del vencimiento y entrega su fecha límite", async () => {
@@ -50,47 +63,76 @@ describe("vigencia de enlaces de firma", () => {
     expect(result.error).toBeNull();
     expect(result.expires).toBe(row.expires_at);
   });
-  it.each([TTL, TTL + 1])("rechaza consultar y firmar a los %i ms, aunque la página ya estuviera abierta", async (elapsed) => {
-    await call(obtenerActaPorToken, { token: TOKEN });
-    vi.setSystemTime(NOW + elapsed);
-    expect((await call(obtenerActaPorToken, { token: TOKEN })).error).toContain("15 minutos");
-    await expect(call(firmarConToken, { token: TOKEN, firma: "data:image/png;base64,test" })).rejects.toThrow("nuevo enlace");
-    expect(h.ejecutar).not.toHaveBeenCalled();
-    expect(admin.find("tokens_firma", "update")).toHaveLength(0);
-  });
+  it.each([TTL, TTL + 1])(
+    "rechaza consultar y firmar a los %i ms, aunque la página ya estuviera abierta",
+    async (elapsed) => {
+      await call(obtenerActaPorToken, { token: TOKEN });
+      vi.setSystemTime(NOW + elapsed);
+      expect((await call(obtenerActaPorToken, { token: TOKEN })).error).toContain("15 minutos");
+      await expect(
+        call(firmarConToken, { token: TOKEN, firma: "data:image/png;base64,test" }),
+      ).rejects.toThrow("nuevo enlace");
+      expect(h.ejecutar).not.toHaveBeenCalled();
+      expect(admin.find("tokens_firma", "update")).toHaveLength(0);
+    },
+  );
   it("aplica 15 minutos también a enlaces antiguos emitidos por 48 horas", async () => {
     row.expires_at = new Date(NOW + 48 * 3600_000).toISOString();
     vi.setSystemTime(NOW + TTL);
     expect((await call(obtenerActaPorToken, { token: TOKEN })).acta).toBeNull();
     expect(h.cargar).not.toHaveBeenCalled();
   });
-  it("no permite usar enlaces revocados", async () => {
+  it("delega enlaces usados a la confirmación idempotente, que rechaza los revocados", async () => {
     row.used_at = new Date(NOW).toISOString();
-    await expect(call(firmarConToken, { token: TOKEN, firma: "data:image/png;base64,test" })).rejects.toThrow("utilizado");
-    expect(h.ejecutar).not.toHaveBeenCalled();
+    h.ejecutar.mockRejectedValueOnce(new Error("Enlace usado o vencido"));
+    await expect(
+      call(firmarConToken, { token: TOKEN, firma: "data:image/png;base64,test" }),
+    ).rejects.toThrow("usado");
+    expect(admin.find("tokens_firma", "update")).toHaveLength(0);
   });
-  it("vuelve a condicionar el consumo a las fechas y al uso del token", async () => {
+  it("no consume el token antes de confirmar la firma en la base de datos", async () => {
     await call(firmarConToken, { token: TOKEN, firma: "data:image/png;base64,test" });
-    const update = admin.find("tokens_firma", "update")[0]!;
-    expect(filtro(update, "used_at", "is")).toBeNull();
-    expect(filtro(update, "expires_at", "gt")).toBe(new Date(NOW).toISOString());
-    expect(filtro(update, "created_at", "gt")).toBe(new Date(NOW - TTL).toISOString());
+    expect(admin.find("tokens_firma", "update")).toHaveLength(0);
+    expect(h.ejecutar).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ actaId: ACTA, actorId: null, tokenFirma: TOKEN }),
+    );
     expect(h.ejecutar).toHaveBeenCalledOnce();
   });
   it("genera enlaces distintos de 15 minutos e invalida el anterior", async () => {
-    const sb = crearSupabaseMock({ onRpc: () => ({ data: true }), onQuery: () => ({ data: { id: ACTA, estado: "pendiente" } }) });
+    const sb = crearSupabaseMock({
+      onRpc: () => ({ data: true }),
+      onQuery: () => ({ data: { id: ACTA, estado: "pendiente" } }),
+    });
     const context = { userId: ACTA, supabase: sb.client };
     const first = await call(crearEnlaceFirma, { actaId: ACTA }, context);
     const second = await call(crearEnlaceFirma, { actaId: ACTA }, context);
     expect(first.expires).toBe(new Date(NOW + TTL).toISOString());
     expect(first.token).not.toBe(second.token);
-    expect(admin.queries.map(q => q.op)).toEqual(["update", "insert", "update", "insert"]);
+    expect(admin.queries.map((q) => q.op)).toEqual(["update", "insert", "update", "insert"]);
     expect(filtro(admin.queries[0]!, "acta_id")).toBe(ACTA);
   });
   it("no emite otro enlace si no pudo invalidar el anterior", async () => {
     admin.setOnQuery(() => ({ error: { message: "fallo" } }));
-    const sb = crearSupabaseMock({ onRpc: () => ({ data: true }), onQuery: () => ({ data: { id: ACTA, estado: "pendiente" } }) });
-    await expect(call(crearEnlaceFirma, { actaId: ACTA }, { userId: ACTA, supabase: sb.client })).rejects.toThrow("invalidar");
+    const sb = crearSupabaseMock({
+      onRpc: () => ({ data: true }),
+      onQuery: () => ({ data: { id: ACTA, estado: "pendiente" } }),
+    });
+    await expect(
+      call(crearEnlaceFirma, { actaId: ACTA }, { userId: ACTA, supabase: sb.client }),
+    ).rejects.toThrow("invalidar");
     expect(admin.find("tokens_firma", "insert")).toHaveLength(0);
+  });
+  it("conserva los tokens existentes cuando el origen de firma es inválido", async () => {
+    vi.stubEnv("LOCAL_ONLY", "true");
+    vi.stubEnv("PUBLIC_SIGNATURE_ORIGIN", "http://localhost:8080");
+    const sb = crearSupabaseMock({
+      onRpc: () => ({ data: true }),
+      onQuery: () => ({ data: { id: ACTA, estado: "pendiente" } }),
+    });
+    await expect(
+      call(crearEnlaceFirma, { actaId: ACTA }, { userId: ACTA, supabase: sb.client }),
+    ).rejects.toThrow("no localhost");
+    expect(admin.find("tokens_firma")).toHaveLength(0);
   });
 });

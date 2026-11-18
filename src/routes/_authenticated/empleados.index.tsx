@@ -1,7 +1,14 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { fetchAll, fetchByIds } from "@/lib/fetchAll";
+import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import {
+  DataTablePagination,
+  FilasSkeleton,
+  usePaginacion,
+} from "@/components/DataTablePagination";
 import { supabase } from "@/integrations/supabase/client";
 import { useMe } from "@/lib/me";
 import { useCatalogos } from "@/lib/catalogos";
@@ -11,7 +18,14 @@ import { PageHeader } from "@/components/Estado";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Building2,
@@ -38,7 +52,10 @@ export const Route = createFileRoute("/_authenticated/empleados/")({
   head: () => ({
     meta: [
       { title: "Empleados — Finesa" },
-      { name: "description", content: "Directorio de colaboradores, estado de paz y salvo y acceso al portal." },
+      {
+        name: "description",
+        content: "Directorio de colaboradores, estado de paz y salvo y acceso al portal.",
+      },
     ],
   }),
   component: Empleados,
@@ -89,6 +106,7 @@ function Empleados() {
           .eq("activo", true)
           .not("user_id", "is", null),
       ]);
+      for (const result of [tot, act, pin]) if (result.error) throw result.error;
       const total = tot.count ?? 0;
       const activos = act.count ?? 0;
       const conPortal = pin.count ?? 0;
@@ -102,7 +120,18 @@ function Empleados() {
   });
 
   const q = useQuery({
-    queryKey: ["empleados", "pagina", texto, estado, sede, area, empresa, portal, pag.desde, pag.tamano],
+    queryKey: [
+      "empleados",
+      "pagina",
+      texto,
+      estado,
+      sede,
+      area,
+      empresa,
+      portal,
+      pag.desde,
+      pag.tamano,
+    ],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       let s = supabase.from("empleados").select("*", { count: "exact" });
@@ -117,17 +146,24 @@ function Empleados() {
           `nombre.ilike.%${texto}%,identificacion.ilike.%${texto}%,email.ilike.%${texto}%,cargo.ilike.%${texto}%`,
         );
       }
-      const { data, count, error } = await s.order("nombre").order("id").range(pag.desde, pag.hasta);
+      const { data, count, error } = await s
+        .order("nombre")
+        .order("id")
+        .range(pag.desde, pag.hasta);
       if (error) throw error;
       const filas = data ?? [];
       const ids = filas.map((e) => e.id);
       const conteoEquipos: Record<string, number> = {};
       if (ids.length > 0) {
-        const { data: eqs } = await supabase
-          .from("equipos")
-          .select("empleado_id")
-          .eq("estado", "asignado")
-          .in("empleado_id", ids);
+        const eqs = await fetchByIds(ids, (ids, a, b) =>
+          supabase
+            .from("equipos")
+            .select("empleado_id")
+            .eq("estado", "asignado")
+            .in("empleado_id", ids)
+            .order("id")
+            .range(a, b),
+        );
         for (const r of eqs ?? []) {
           if (r.empleado_id) conteoEquipos[r.empleado_id] = (conteoEquipos[r.empleado_id] ?? 0) + 1;
         }
@@ -140,39 +176,49 @@ function Empleados() {
   const total = q.data?.total ?? 0;
   const conteoEquipos = q.data?.conteoEquipos ?? {};
   const kpis = resumenQ.data ?? { total: 0, activos: 0, inactivos: 0, conPortal: 0 };
-  const hayFiltros = Boolean(t || texto || sede || area || empresa || portal || estado !== "activos");
+  const hayFiltros = Boolean(
+    t || texto || sede || area || empresa || portal || estado !== "activos",
+  );
 
   async function exportarDirectorio() {
-    let s = supabase.from("empleados").select("*").order("nombre");
-    if (estado !== "todos") s = s.eq("activo", estado === "activos");
-    if (sede) s = s.eq("sede_id", sede);
-    if (area) s = s.eq("area_id", area);
-    if (empresa) s = s.eq("empresa_id", empresa);
-    if (portal === "con_pin") s = s.not("user_id", "is", null);
-    if (portal === "sin_pin") s = s.is("user_id", null);
-    if (texto) {
-      s = s.or(
-        `nombre.ilike.%${texto}%,identificacion.ilike.%${texto}%,email.ilike.%${texto}%,cargo.ilike.%${texto}%`,
+    try {
+      const data = await fetchAll((a, b) => {
+        let s = supabase.from("empleados").select("*").order("nombre");
+        if (estado !== "todos") s = s.eq("activo", estado === "activos");
+        if (sede) s = s.eq("sede_id", sede);
+        if (area) s = s.eq("area_id", area);
+        if (empresa) s = s.eq("empresa_id", empresa);
+        if (portal === "con_pin") s = s.not("user_id", "is", null);
+        if (portal === "sin_pin") s = s.is("user_id", null);
+        if (texto) {
+          s = s.or(
+            `nombre.ilike.%${texto}%,identificacion.ilike.%${texto}%,email.ilike.%${texto}%,cargo.ilike.%${texto}%`,
+          );
+        }
+        return s.order("id").range(a, b);
+      });
+      if (!data?.length) return toast.info("No hay empleados con los filtros actuales");
+      descargarCSV(
+        `empleados_${hoyColombia()}.csv`,
+        data.map((e) => ({
+          Nombre: e.nombre,
+          Identificacion: e.identificacion,
+          Correo: e.email ?? "",
+          Cargo: e.cargo ?? "",
+          Area: cat.nombre(e.area_id),
+          Sede: cat.nombre(e.sede_id),
+          Empresa: cat.nombre(e.empresa_id),
+          Estado: e.activo ? "Activo" : "Inactivo",
+          Portal_PIN: e.user_id ? "Habilitado" : "Sin configurar",
+        })),
       );
+    } catch (error) {
+      toast.error(errMsg(error));
     }
-    const { data, error } = await s.limit(5000);
-    if (error) return toast.error(errMsg(error));
-    if (!data?.length) return toast.info("No hay empleados con los filtros actuales");
-    descargarCSV(
-      `empleados_${new Date().toISOString().slice(0, 10)}.csv`,
-      data.map((e) => ({
-        Nombre: e.nombre,
-        Identificacion: e.identificacion,
-        Correo: e.email ?? "",
-        Cargo: e.cargo ?? "",
-        Area: cat.nombre(e.area_id),
-        Sede: cat.nombre(e.sede_id),
-        Empresa: cat.nombre(e.empresa_id),
-        Estado: e.activo ? "Activo" : "Inactivo",
-        Portal_PIN: e.user_id ? "Habilitado" : "Sin configurar",
-      })),
-    );
   }
+
+  if (resumenQ.isError) return <ErrorConsulta reintentar={() => resumenQ.refetch()} />;
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
 
   return (
     <div className="space-y-5">
@@ -194,7 +240,9 @@ function Empleados() {
           onClick={() => setEstado("activos")}
           className={cn(
             "rounded-2xl border bg-card p-4 text-left shadow-2xs transition-all",
-            estado === "activos" ? "border-primary/40 ring-1 ring-primary/20" : "border-border/80 hover:border-border",
+            estado === "activos"
+              ? "border-primary/40 ring-1 ring-primary/20"
+              : "border-border/80 hover:border-border",
           )}
         >
           <div className="flex items-center justify-between">
@@ -206,7 +254,9 @@ function Empleados() {
           <div className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">
             {kpis.activos.toLocaleString("es-CO")}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">En nómina activa para asignación de equipos.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            En nómina activa para asignación de equipos.
+          </p>
         </button>
 
         <button
@@ -217,11 +267,15 @@ function Empleados() {
           }}
           className={cn(
             "rounded-2xl border bg-card p-4 text-left shadow-2xs transition-all",
-            portal === "con_pin" ? "border-primary/40 ring-1 ring-primary/20" : "border-border/80 hover:border-border",
+            portal === "con_pin"
+              ? "border-primary/40 ring-1 ring-primary/20"
+              : "border-border/80 hover:border-border",
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Acceso al Portal (PIN)</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Acceso al Portal (PIN)
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
               <ShieldCheck className="h-4 w-4" />
             </div>
@@ -231,10 +285,13 @@ function Empleados() {
               {kpis.conPortal.toLocaleString("es-CO")}
             </span>
             <span className="text-xs text-muted-foreground">
-              {kpis.activos > 0 ? `${Math.round((kpis.conPortal / kpis.activos) * 100)}%` : "0%"} habilitados
+              {kpis.activos > 0 ? `${Math.round((kpis.conPortal / kpis.activos) * 100)}%` : "0%"}{" "}
+              habilitados
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Autoconsulta de actas, certificaciones y fallas.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Autoconsulta de actas, certificaciones y fallas.
+          </p>
         </button>
 
         <button
@@ -256,7 +313,9 @@ function Empleados() {
           <div className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">
             {kpis.inactivos.toLocaleString("es-CO")}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Con historial de actas preservado y paz y salvo.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Con historial de actas preservado y paz y salvo.
+          </p>
         </button>
 
         <button
@@ -267,7 +326,9 @@ function Empleados() {
           }}
           className={cn(
             "rounded-2xl border bg-card p-4 text-left shadow-2xs transition-all",
-            estado === "todos" ? "border-primary/40 ring-1 ring-primary/20" : "border-border/80 hover:border-border",
+            estado === "todos"
+              ? "border-primary/40 ring-1 ring-primary/20"
+              : "border-border/80 hover:border-border",
           )}
         >
           <div className="flex items-center justify-between">
@@ -279,7 +340,9 @@ function Empleados() {
           <div className="mt-2 font-display text-2xl font-bold tracking-tight text-foreground">
             {kpis.total.toLocaleString("es-CO")}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Colaboradores registrados en el ecosistema.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Colaboradores registrados en el ecosistema.
+          </p>
         </button>
       </div>
 
@@ -331,7 +394,12 @@ function Empleados() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          <select className={selCls} value={sede} onChange={(e) => setSede(e.target.value)} aria-label="Sede">
+          <select
+            className={selCls}
+            value={sede}
+            onChange={(e) => setSede(e.target.value)}
+            aria-label="Sede"
+          >
             <option value="">Todas las sedes</option>
             {cat.byTipo("sede", false).map((c) => (
               <option key={c.id} value={c.id}>
@@ -340,7 +408,12 @@ function Empleados() {
             ))}
           </select>
 
-          <select className={selCls} value={area} onChange={(e) => setArea(e.target.value)} aria-label="Área">
+          <select
+            className={selCls}
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
+            aria-label="Área"
+          >
             <option value="">Todas las áreas</option>
             {cat.byTipo("area", false).map((c) => (
               <option key={c.id} value={c.id}>
@@ -349,7 +422,12 @@ function Empleados() {
             ))}
           </select>
 
-          <select className={selCls} value={empresa} onChange={(e) => setEmpresa(e.target.value)} aria-label="Empresa">
+          <select
+            className={selCls}
+            value={empresa}
+            onChange={(e) => setEmpresa(e.target.value)}
+            aria-label="Empresa"
+          >
             <option value="">Todas las empresas</option>
             {cat.byTipo("empresa", false).map((c) => (
               <option key={c.id} value={c.id}>
@@ -464,7 +542,9 @@ function Empleados() {
                             </button>
                           </div>
                         ) : (
-                          <div className="mt-0.5 text-[11px] text-muted-foreground/60">Sin correo registrado</div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground/60">
+                            Sin correo registrado
+                          </div>
                         )}
                       </div>
                     </div>
@@ -478,7 +558,8 @@ function Empleados() {
                         title="Copiar identificación"
                         onClick={async (ev) => {
                           ev.stopPropagation();
-                          if (await copiarTexto(e.identificacion)) toast.success("Identificación copiada");
+                          if (await copiarTexto(e.identificacion))
+                            toast.success("Identificación copiada");
                         }}
                         className="rounded p-0.5 text-muted-foreground hover:text-foreground"
                       >
@@ -489,12 +570,18 @@ function Empleados() {
 
                   <td className="px-4 py-3">
                     <div className="text-xs font-medium text-foreground">{e.cargo || "—"}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">{cat.nombre(e.area_id)}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {cat.nombre(e.area_id)}
+                    </div>
                   </td>
 
                   <td className="px-4 py-3">
-                    <div className="text-xs font-medium text-foreground">{cat.nombre(e.sede_id)}</div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">{cat.nombre(e.empresa_id)}</div>
+                    <div className="text-xs font-medium text-foreground">
+                      {cat.nombre(e.sede_id)}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {cat.nombre(e.empresa_id)}
+                    </div>
                   </td>
 
                   <td className="px-4 py-3">
@@ -598,7 +685,9 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
         ? await supabase.from("empleados").update(row).eq("id", f.id)
         : await supabase.from("empleados").insert(row);
       if (error) {
-        toast.error(error.code === "23505" ? "Ya existe un empleado con esa identificación." : errMsg(error));
+        toast.error(
+          error.code === "23505" ? "Ya existe un empleado con esa identificación." : errMsg(error),
+        );
         return;
       }
       toast.success(f.id ? "Ficha del empleado actualizada" : "Empleado registrado exitosamente");
@@ -629,9 +718,12 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle>{inicial ? "Editar ficha del colaborador" : "Registrar nuevo colaborador"}</DialogTitle>
+          <DialogTitle>
+            {inicial ? "Editar ficha del colaborador" : "Registrar nuevo colaborador"}
+          </DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Información personal y ubicación organizacional utilizada en la generación de actas digitales.
+            Información personal y ubicación organizacional utilizada en la generación de actas
+            digitales.
           </p>
         </DialogHeader>
         <form onSubmit={guardar} className="space-y-4">
@@ -644,6 +736,7 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
               <div className="space-y-1 sm:col-span-2">
                 <Label className="text-xs">Nombre completo *</Label>
                 <Input
+                  aria-label="Nombre completo *"
                   required
                   placeholder="Ej. Laura Marcela Gómez"
                   value={f.nombre}
@@ -653,6 +746,7 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
               <div className="space-y-1">
                 <Label className="text-xs">Documento de identidad (Cédula) *</Label>
                 <Input
+                  aria-label="Documento de identidad (Cédula) *"
                   required
                   placeholder="Ej. 1030506070"
                   className="font-mono"
@@ -685,6 +779,7 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
               <div className="space-y-1">
                 <Label className="text-xs">Cargo</Label>
                 <Input
+                  aria-label="Cargo"
                   placeholder="Ej. Analista de Crédito"
                   value={f.cargo}
                   onChange={(e) => setF({ ...f, cargo: e.target.value })}
@@ -692,14 +787,24 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Área / Departamento</Label>
-                <select className={s} value={f.area_id} onChange={(e) => setF({ ...f, area_id: e.target.value })}>
+                <select
+                  aria-label="Área / Departamento"
+                  className={s}
+                  value={f.area_id}
+                  onChange={(e) => setF({ ...f, area_id: e.target.value })}
+                >
                   <option value="">— Seleccione —</option>
                   {opt("area")}
                 </select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Sede</Label>
-                <select className={s} value={f.sede_id} onChange={(e) => setF({ ...f, sede_id: e.target.value })}>
+                <select
+                  aria-label="Sede"
+                  className={s}
+                  value={f.sede_id}
+                  onChange={(e) => setF({ ...f, sede_id: e.target.value })}
+                >
                   <option value="">— Seleccione —</option>
                   {opt("sede")}
                 </select>
@@ -707,6 +812,7 @@ export function FormEmpleado({ inicial }: { inicial?: EmpleadoForm }) {
               <div className="space-y-1">
                 <Label className="text-xs">Empresa</Label>
                 <select
+                  aria-label="Empresa"
                   className={s}
                   value={f.empresa_id}
                   onChange={(e) => setF({ ...f, empresa_id: e.target.value })}

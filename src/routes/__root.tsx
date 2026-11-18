@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 import { registrarActividadGlobal, limpiarActividadGlobal } from "@/lib/inactividad";
+import { cargaMasivaStore } from "@/lib/cargaMasivaStore";
 
 function NotFoundComponent() {
   return (
@@ -23,7 +24,9 @@ function NotFoundComponent() {
         <div className="mx-auto mb-3 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-mono text-xs font-medium text-primary">
           ERROR 404
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Página no encontrada</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Página no encontrada
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           La ruta solicitada no existe o fue movida dentro del espacio de trabajo.
         </p>
@@ -71,9 +74,12 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         <div className="mx-auto mb-3 inline-flex rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 font-mono text-xs font-medium text-destructive">
           RECUPERACIÓN DE VISTA
         </div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">No se pudo cargar esta vista</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          No se pudo cargar esta vista
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Ocurrió una interrupción temporal de red o actualización de módulos. Puede reintentar de inmediato sin perder su sesión.
+          Ocurrió una interrupción temporal de red o actualización de módulos. Puede reintentar de
+          inmediato sin perder su sesión.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -103,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+        content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       { title: "Finesa — Inventario y Actas" },
       {
@@ -129,12 +135,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -197,6 +197,7 @@ function RootComponent() {
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUserId = session?.user.id ?? null;
+      cargaMasivaStore.setIdentity(nextUserId);
       const changedUser = userId !== nextUserId;
       userId = nextUserId;
       if (event === "SIGNED_IN" && changedUser) {

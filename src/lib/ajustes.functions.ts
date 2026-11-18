@@ -5,7 +5,9 @@ import { clientIp, registrarAuditoria } from "./firmas.server";
 import { checkRateLimit, validarPngBase64, validarPoliticaPassword } from "./security.server";
 
 type Ctx = {
-  supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database>;
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >;
   userId: string;
 };
 
@@ -32,7 +34,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get("Authorization") === `Bearer ${supabaseKey}`) {
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
       headers.delete("Authorization");
     }
     headers.set("apikey", supabaseKey);
@@ -111,12 +116,15 @@ async function verificarCredencialesUsuario(
   }
 
   // Cerrar únicamente el token efímero generado en el servidor sin afectar la sesión del navegador
-  await ephemeral.auth.signOut({ scope: "local" }).catch(() => {});
+  const signedOut = await ephemeral.auth.signOut({ scope: "local" });
+  if (signedOut.error) throw new Error("No se pudo cerrar la sesión temporal de verificación.");
 
   return { ok: true, email: emailReal };
 }
 
-function validarNombrePerfil(raw: string): { ok: true; nombre: string } | { ok: false; error: string } {
+function validarNombrePerfil(
+  raw: string,
+): { ok: true; nombre: string } | { ok: false; error: string } {
   const limpio = raw.trim().replace(/\s+/g, " ");
   if (limpio.length < 3) {
     return { ok: false, error: "El nombre debe tener al menos 3 caracteres." };
@@ -148,11 +156,19 @@ export const actualizarNombre = createServerFn({ method: "POST" })
     const valNombre = validarNombrePerfil(data.nombre);
     if (!valNombre.ok) return { error: valNombre.error };
 
-    const verif = await verificarCredencialesUsuario(context.userId, data.credenciales, "Cambiar nombre de perfil");
+    const verif = await verificarCredencialesUsuario(
+      context.userId,
+      data.credenciales,
+      "Cambiar nombre de perfil",
+    );
     if (!verif.ok) return { error: verif.error };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prev } = await supabaseAdmin.from("profiles").select("nombre").eq("id", context.userId).maybeSingle();
+    const { data: prev } = await supabaseAdmin
+      .from("profiles")
+      .select("nombre")
+      .eq("id", context.userId)
+      .maybeSingle();
     if ((prev?.nombre ?? "").trim() === valNombre.nombre) {
       return { error: "El nuevo nombre es idéntico al nombre actual." };
     }
@@ -163,9 +179,10 @@ export const actualizarNombre = createServerFn({ method: "POST" })
       .eq("id", context.userId);
     if (error) return { error: error.message };
 
-    await supabaseAdmin.auth.admin
-      .updateUserById(context.userId, { user_metadata: { nombre: valNombre.nombre } })
-      .catch(() => {});
+    const authUpdate = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      user_metadata: { nombre: valNombre.nombre },
+    });
+    if (authUpdate.error) throw new Error(authUpdate.error.message);
 
     await registrarAuditoria(
       supabaseAdmin,
@@ -183,9 +200,17 @@ export const obtenerMiFirma = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     if (!(await esStaff(context))) return { url: null as string | null };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: p } = await supabaseAdmin.from("profiles").select("firma_path").eq("id", context.userId).maybeSingle();
+    const { data: p, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("firma_path")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (profileError) throw new Error(profileError.message);
     if (!p?.firma_path) return { url: null as string | null };
-    const { data: s } = await supabaseAdmin.storage.from("actas").createSignedUrl(p.firma_path, 300);
+    const { data: s, error } = await supabaseAdmin.storage
+      .from("actas")
+      .createSignedUrl(p.firma_path, 300);
+    if (error) throw new Error(error.message);
     return { url: s?.signedUrl ?? null };
   });
 
@@ -213,14 +238,21 @@ export const guardarMiFirma = createServerFn({ method: "POST" })
 
     const bytes = pngCheck.bytes;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prev } = await supabaseAdmin.from("profiles").select("firma_path").eq("id", context.userId).maybeSingle();
-    const path = `firmas-usuarios/${context.userId}-${Date.now()}.png`;
-    const up = await supabaseAdmin.storage.from("actas").upload(path, bytes, { contentType: "image/png" });
+    const path = `firmas-usuarios/${context.userId}-${crypto.randomUUID()}.png`;
+    const up = await supabaseAdmin.storage
+      .from("actas")
+      .upload(path, bytes, { contentType: "image/png" });
     if (up.error) return { error: "No se pudo guardar la firma: " + up.error.message };
-    await supabaseAdmin.from("profiles").update({ firma_path: path }).eq("id", context.userId);
-    if (prev?.firma_path && prev.firma_path.startsWith(`firmas-usuarios/${context.userId}`)) {
-      await supabaseAdmin.storage.from("actas").remove([prev.firma_path]);
-    }
+    const updated = await supabaseAdmin
+      .from("profiles")
+      .update({ firma_path: path })
+      .eq("id", context.userId)
+      .select("id")
+      .single();
+    if (updated.error) throw new Error(updated.error.message);
+    if (!updated.data) throw new Error("No se confirmó el guardado de la firma.");
+    // Las imágenes anteriores pueden estar referenciadas por actas históricas.
+    // Se conservan; una limpieza posterior debe comprobar todas las referencias.
     await registrarAuditoria(
       supabaseAdmin,
       context.userId,
@@ -251,11 +283,14 @@ export const borrarMiFirma = createServerFn({ method: "POST" })
     if (!verif.ok) return { error: verif.error };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prev } = await supabaseAdmin.from("profiles").select("firma_path").eq("id", context.userId).maybeSingle();
-    await supabaseAdmin.from("profiles").update({ firma_path: null }).eq("id", context.userId);
-    if (prev?.firma_path && prev.firma_path.startsWith(`firmas-usuarios/${context.userId}`)) {
-      await supabaseAdmin.storage.from("actas").remove([prev.firma_path]);
-    }
+    const updated = await supabaseAdmin
+      .from("profiles")
+      .update({ firma_path: null })
+      .eq("id", context.userId)
+      .select("id")
+      .single();
+    if (updated.error) throw new Error(updated.error.message);
+    if (!updated.data) throw new Error("No se confirmó la desvinculación de la firma.");
     await registrarAuditoria(
       supabaseAdmin,
       context.userId,
@@ -293,7 +328,9 @@ export const cambiarMiPassword = createServerFn({ method: "POST" })
     if (!verif.ok) return { error: verif.error };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { password: data.password });
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, {
+      password: data.password,
+    });
     if (error) return { error: error.message };
     await registrarAuditoria(
       supabaseAdmin,
@@ -311,24 +348,68 @@ export const adjuntarFirmaTecnico = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ actaId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    if (!(await esStaff(context))) return { ok: false };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: acta } = await supabaseAdmin.from("actas").select("id, tecnico_id, estado").eq("id", data.actaId).maybeSingle();
-    if (!acta || acta.tecnico_id !== context.userId || acta.estado !== "pendiente") return { ok: false };
-    const { data: p } = await supabaseAdmin.from("profiles").select("firma_path").eq("id", context.userId).maybeSingle();
+    const { data: acta, error: actaError } = await context.supabase
+      .from("actas")
+      .select("id, tecnico_id, estado, tecnico_firma_path")
+      .eq("id", data.actaId)
+      .maybeSingle();
+    if (actaError) throw new Error(actaError.message);
+    if (!acta || acta.tecnico_id !== context.userId || acta.estado !== "pendiente")
+      return { ok: false };
+    if (acta.tecnico_firma_path) return { ok: true };
+    const { data: p, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("firma_path")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (profileError) throw new Error(profileError.message);
     if (!p?.firma_path) return { ok: false };
-    const dest = `${acta.id}/tecnico.png`;
-    const { error } = await supabaseAdmin.storage.from("actas").copy(p.firma_path, dest);
-    if (error) return { ok: false };
-    await supabaseAdmin.from("actas").update({ tecnico_firma_path: dest }).eq("id", acta.id);
+    const dest = `${acta.id}/tecnico-${crypto.randomUUID()}.png`;
+    const storage = supabaseAdmin.storage.from("actas");
+    const { error } = await storage.copy(p.firma_path, dest);
+    if (error) throw new Error("No se pudo copiar la firma del técnico: " + error.message);
+    const updated = await supabaseAdmin
+      .from("actas")
+      .update({ tecnico_firma_path: dest })
+      .eq("id", acta.id)
+      .eq("estado", "pendiente")
+      .is("tecnico_firma_path", null)
+      .select("id")
+      .single();
+    if (updated.error || !updated.data) {
+      const current = await supabaseAdmin
+        .from("actas")
+        .select("tecnico_firma_path")
+        .eq("id", acta.id)
+        .maybeSingle();
+      // Una respuesta perdida puede ocultar un UPDATE ya confirmado.
+      if (current.error) throw new Error(updated.error?.message || current.error.message);
+      if (current.data?.tecnico_firma_path === dest) return { ok: true };
+      // Si la respuesta falló y aún no hay referencia, el UPDATE puede seguir en curso.
+      // Conservar la copia evita borrar la firma que esa transacción podría confirmar.
+      if (updated.error && !current.data?.tecnico_firma_path)
+        throw new Error(updated.error.message);
+      const cleanup = await storage.remove([dest]);
+      if (cleanup.error)
+        console.error(
+          "No se pudo limpiar una copia técnica sin referencia:",
+          cleanup.error.message,
+        );
+      if (current.data?.tecnico_firma_path) return { ok: true };
+      throw new Error(
+        updated.error?.message || "El acta cambió antes de adjuntar la firma del técnico.",
+      );
+    }
     return { ok: true };
   });
 
-export const obtenerConfigPortal = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { leerPortalEmpleadosActivo } = await import("./configuracion.server");
-    const portalEmpleadosActivo = await leerPortalEmpleadosActivo();
-    return { portalEmpleadosActivo };
-  });
+export const obtenerConfigPortal = createServerFn({ method: "GET" }).handler(async () => {
+  const { leerPortalEmpleadosActivo } = await import("./configuracion.server");
+  const portalEmpleadosActivo = await leerPortalEmpleadosActivo();
+  return { portalEmpleadosActivo };
+});
 
 export const configurarPortalEmpleados = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

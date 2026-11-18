@@ -1,4 +1,5 @@
 ## Decisiones técnicas
+
 - Reglas de negocio críticas (paz y salvo, cambios de estado de equipos, serie inmutable, anulación) viven en triggers/RPC de Postgres — la interfaz no es la frontera de seguridad.
 - Roles en `user_roles` y permisos por acción en `user_permisos`; `has_permiso()` se usa en RLS — evita escalación de privilegios.
 - Los administradores solo se crean por SQL en Supabase; la app nunca asigna el rol admin — requisito del cliente.

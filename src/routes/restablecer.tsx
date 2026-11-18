@@ -28,7 +28,8 @@ function Restablecer() {
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((ev, session) => {
-      if (session && (ev === "PASSWORD_RECOVERY" || ev === "SIGNED_IN" || ev === "INITIAL_SESSION")) setReady(true);
+      if (session && (ev === "PASSWORD_RECOVERY" || ev === "SIGNED_IN" || ev === "INITIAL_SESSION"))
+        setReady(true);
     });
     supabase.auth.getSession().then(({ data: s }) => s.session && setReady(true));
     return () => data.subscription.unsubscribe();
@@ -42,7 +43,10 @@ function Restablecer() {
     const { error } = await supabase.auth.updateUser({ password: p1 });
     setLoading(false);
     if (error) return toast.error(error.message);
-    await supabase.rpc("log_evento", { p_accion: "CAMBIO_CLAVE", p_detalle: "Contraseña definida mediante enlace" });
+    await supabase.rpc("log_evento", {
+      p_accion: "CAMBIO_CLAVE",
+      p_detalle: "Contraseña definida mediante enlace",
+    });
     toast.success("Contraseña actualizada");
     nav({ to: "/panel", replace: true });
   }
@@ -57,18 +61,38 @@ function Restablecer() {
         className="login-card w-full max-w-[390px] space-y-5 rounded-2xl border border-border/80 bg-card/85 p-7 backdrop-blur-xl"
       >
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Definir nueva contraseña</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">
+            Definir nueva contraseña
+          </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            {ready ? "Elija una contraseña segura de mínimo 8 caracteres." : "Validando enlace… Si no avanza, solicite un nuevo enlace."}
+            {ready
+              ? "Elija una contraseña segura de mínimo 8 caracteres."
+              : "Validando enlace… Si no avanza, solicite un nuevo enlace."}
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="p1" className="text-xs">Nueva contraseña</Label>
-          <Input id="p1" type="password" value={p1} onChange={(e) => setP1(e.target.value)} disabled={!ready} />
+          <Label htmlFor="p1" className="text-xs">
+            Nueva contraseña
+          </Label>
+          <Input
+            id="p1"
+            type="password"
+            value={p1}
+            onChange={(e) => setP1(e.target.value)}
+            disabled={!ready}
+          />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="p2" className="text-xs">Confirmar contraseña</Label>
-          <Input id="p2" type="password" value={p2} onChange={(e) => setP2(e.target.value)} disabled={!ready} />
+          <Label htmlFor="p2" className="text-xs">
+            Confirmar contraseña
+          </Label>
+          <Input
+            id="p2"
+            type="password"
+            value={p2}
+            onChange={(e) => setP2(e.target.value)}
+            disabled={!ready}
+          />
         </div>
         <Button className="h-10 w-full" disabled={!ready || loading}>
           Guardar contraseña

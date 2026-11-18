@@ -14,6 +14,7 @@ create table if not exists auth.users (
   id uuid primary key,
   email text,
   raw_user_meta_data jsonb default '{}'::jsonb,
+  raw_app_meta_data jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -35,10 +36,15 @@ $$;
 do $$ begin
   if not exists (select from pg_roles where rolname = 'authenticated') then create role authenticated; end if;
   if not exists (select from pg_roles where rolname = 'anon') then create role anon; end if;
-  if not exists (select from pg_roles where rolname = 'service_role') then create role service_role; end if;
+  if not exists (select from pg_roles where rolname = 'service_role') then create role service_role bypassrls; end if;
 end $$;
 
 create schema if not exists storage;
+create table if not exists storage.buckets (
+  id text primary key,
+  name text not null,
+  public boolean not null default false
+);
 create table if not exists storage.objects (
   id uuid primary key default gen_random_uuid(),
   bucket_id text,
@@ -52,8 +58,6 @@ grant usage on schema auth to authenticated, service_role;
 grant select, insert, update, delete on storage.objects to authenticated, service_role;
 `;
 
-let baseDb: PGlite | null = null;
-
 /**
  * Inicializa una base de datos Postgres en memoria con el esquema consolidado
  * completo de Supabase y las migraciones del proyecto.
@@ -62,16 +66,29 @@ export async function createTestDatabase(): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(PREAMBLE);
 
-  const mig1 = fs.readFileSync(path.join(root, "supabase/migrations/20261021000000_esquema_consolidado.sql"), "utf8");
-  await db.exec(mig1);
+  const migrations = path.join(root, "supabase/migrations");
+  for (const file of fs
+    .readdirSync(migrations)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()) {
+    const sql = fs.readFileSync(path.join(migrations, file), "utf8");
+    try {
+      await db.exec(sql);
+    } catch (error) {
+      const position = Number((error as { position?: string }).position);
+      const line = Number.isFinite(position)
+        ? sql.slice(0, position - 1).split("\n").length
+        : "desconocida";
+      await db.close();
+      throw new Error(
+        `Migración ${file}, línea ${line}: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+  }
 
-  const mig2 = fs.readFileSync(path.join(root, "supabase/migrations/20261021170000_carga_masiva_ecosistema.sql"), "utf8");
-  await db.exec(mig2);
-
-  const mig3 = fs.readFileSync(path.join(root, "supabase/migrations/20261022120000_mejoras_actas_baja_storage.sql"), "utf8");
-  await db.exec(mig3);
-
-  // Asegura que las tablas principales apliquen RLS incluso para roles con bypass si se ejecutan como usuario
+  // FORCE también cubre al propietario ordinario; service_role conserva BYPASSRLS,
+  // como en Supabase. Las pruebas de usuario siempre cambian a authenticated.
   await db.exec(`
     alter table public.profiles force row level security;
     alter table public.user_roles force row level security;
@@ -97,11 +114,7 @@ export async function createTestDatabase(): Promise<PGlite> {
  * Contexto de ejecución bajo la identidad de un usuario específico de Supabase
  * (con RLS activo bajo el rol `authenticated`).
  */
-export async function withUser<T>(
-  db: PGlite,
-  userId: string,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withUser<T>(db: PGlite, userId: string, fn: () => Promise<T>): Promise<T> {
   await db.exec(`
     set role authenticated;
     set request.jwt.claim.sub = '${userId}';
@@ -121,10 +134,7 @@ export async function withUser<T>(
 /**
  * Contexto de ejecución con privilegios de superusuario / service_role.
  */
-export async function withServiceRole<T>(
-  db: PGlite,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withServiceRole<T>(db: PGlite, fn: () => Promise<T>): Promise<T> {
   await db.exec(`
     set role service_role;
     set request.jwt.claim.sub = '';

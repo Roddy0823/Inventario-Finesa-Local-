@@ -4,7 +4,18 @@ import { toast } from "sonner";
 import type { Prov } from "@/lib/proveedores";
 import { copiarTexto } from "@/lib/utils";
 
-type P = Partial<Pick<Prov, "contacto_nombre" | "asesor_telefono" | "whatsapp" | "telefono" | "email" | "direccion" | "sitio_web">>;
+type P = Partial<
+  Pick<
+    Prov,
+    | "contacto_nombre"
+    | "asesor_telefono"
+    | "whatsapp"
+    | "telefono"
+    | "email"
+    | "direccion"
+    | "sitio_web"
+  >
+>;
 
 const ICONOS: Record<string, typeof Phone> = {
   Asesor: UserCheck,
@@ -25,10 +36,16 @@ export function ContactoProveedor({ p, compacto = false }: { p: P; compacto?: bo
     ["Celular", p.whatsapp],
     ["Teléfono empresa", p.telefono],
     ["Correo", p.email],
-    ...(compacto ? [] : ([["Dirección", p.direccion], ["Sitio web", p.sitio_web]] as [string, string | null | undefined][])),
+    ...(compacto
+      ? []
+      : ([
+          ["Dirección", p.direccion],
+          ["Sitio web", p.sitio_web],
+        ] as [string, string | null | undefined][])),
   ];
   const visibles = filas.filter(([, v]) => v);
-  if (!visibles.length) return <p className="text-xs text-muted-foreground">Sin datos de contacto registrados.</p>;
+  if (!visibles.length)
+    return <p className="text-xs text-muted-foreground">Sin datos de contacto registrados.</p>;
 
   function copiar(k: string, v: string) {
     copiarTexto(v);

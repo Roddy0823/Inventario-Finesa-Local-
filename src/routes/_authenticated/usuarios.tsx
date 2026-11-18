@@ -29,7 +29,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn, copiarTexto } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -66,7 +73,10 @@ export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({
     meta: [
       { title: "Usuarios y permisos — Finesa" },
-      { name: "description", content: "Gestión de auxiliares de soporte y matriz de control de acceso (RBAC)." },
+      {
+        name: "description",
+        content: "Gestión de auxiliares de soporte y matriz de control de acceso (RBAC).",
+      },
     ],
   }),
   component: Usuarios,
@@ -179,16 +189,15 @@ function evaluarFortaleza(p: string) {
   if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++;
   if (/\d/.test(p)) score++;
   if (/[^a-zA-Z0-9]/.test(p)) score++;
-  const etiqueta =
-    !p.length
-      ? { texto: "Sin definir", cls: "text-muted-foreground", bar: "bg-muted" }
-      : score <= 1
-        ? { texto: "Débil", cls: "text-destructive", bar: "bg-destructive" }
-        : score === 2
-          ? { texto: "Aceptable", cls: "text-warning-foreground", bar: "bg-warning" }
-          : score === 3
-            ? { texto: "Fuerte", cls: "text-primary", bar: "bg-primary" }
-            : { texto: "Muy fuerte", cls: "text-success", bar: "bg-success" };
+  const etiqueta = !p.length
+    ? { texto: "Sin definir", cls: "text-muted-foreground", bar: "bg-muted" }
+    : score <= 1
+      ? { texto: "Débil", cls: "text-destructive", bar: "bg-destructive" }
+      : score === 2
+        ? { texto: "Aceptable", cls: "text-warning-foreground", bar: "bg-warning" }
+        : score === 3
+          ? { texto: "Fuerte", cls: "text-primary", bar: "bg-primary" }
+          : { texto: "Muy fuerte", cls: "text-success", bar: "bg-success" };
   return { score, etiqueta };
 }
 
@@ -228,7 +237,9 @@ function Usuarios() {
       return (p.data ?? [])
         .filter((x) => visibles.has(x.id))
         .map((x) => {
-          const dbPerms = (pe.data ?? []).filter((y) => y.user_id === x.id).map((y) => y.permiso as Permiso);
+          const dbPerms = (pe.data ?? [])
+            .filter((y) => y.user_id === x.id)
+            .map((y) => y.permiso as Permiso);
           const extraPerms = (extrasMap[x.id] ?? []) as Permiso[];
           return {
             id: x.id,
@@ -251,7 +262,7 @@ function Usuarios() {
     },
   });
 
-  const lista = q.data ?? [];
+  const lista = useMemo(() => q.data ?? [], [q.data]);
 
   const kpis = useMemo(() => {
     const total = lista.length;
@@ -261,17 +272,27 @@ function Usuarios() {
     const conFirma = lista.filter((u) => !!u.firma_path).length;
     const promPermisos = auxiliares.length
       ? Math.round(
-          (auxiliares.reduce((acc, u) => acc + u.permisos.length, 0) / (auxiliares.length * PERMISOS.length)) * 100,
+          (auxiliares.reduce((acc, u) => acc + u.permisos.length, 0) /
+            (auxiliares.length * PERMISOS.length)) *
+            100,
         )
       : 100;
-    return { total, auxiliares: auxiliares.length, auxActivos, auxSuspendidos, conFirma, promPermisos };
+    return {
+      total,
+      auxiliares: auxiliares.length,
+      auxActivos,
+      auxSuspendidos,
+      conFirma,
+      promPermisos,
+    };
   }, [lista]);
 
   const filtrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
     return lista.filter((u) => {
       const esAdm = u.roles.includes("admin");
-      if (t && !u.nombre.toLowerCase().includes(t) && !u.email.toLowerCase().includes(t)) return false;
+      if (t && !u.nombre.toLowerCase().includes(t) && !u.email.toLowerCase().includes(t))
+        return false;
       if (filtroEstado === "activos" && !u.activo) return false;
       if (filtroEstado === "suspendidos" && u.activo) return false;
       if (filtroRol === "admin" && !esAdm) return false;
@@ -282,10 +303,16 @@ function Usuarios() {
   }, [lista, busca, filtroEstado, filtroRol, filtroPermiso]);
 
   if (!me?.isAdmin) {
-    return <p className="text-muted-foreground">Solo el Administrador puede gestionar usuarios y permisos.</p>;
+    return (
+      <p className="text-muted-foreground">
+        Solo el Administrador puede gestionar usuarios y permisos.
+      </p>
+    );
   }
 
-  const hayFiltros = Boolean(busca || filtroEstado !== "todos" || filtroRol !== "todos" || filtroPermiso);
+  const hayFiltros = Boolean(
+    busca || filtroEstado !== "todos" || filtroRol !== "todos" || filtroPermiso,
+  );
   const usuarioDetalle = lista.find((u) => u.id === detalleId) ?? null;
 
   async function togglePermisoMatriz(u: Fila, perm: Permiso) {
@@ -300,9 +327,7 @@ function Usuarios() {
         toast.error(r.error);
         return;
       }
-      toast.success(
-        `${tiene ? "Permiso revocado" : "Permiso otorgado"} a ${u.nombre || u.email}`,
-      );
+      toast.success(`${tiene ? "Permiso revocado" : "Permiso otorgado"} a ${u.nombre || u.email}`);
       qc.invalidateQueries({ queryKey: ["usuarios"] });
     } catch (e) {
       toast.error(errMsg(e));
@@ -360,7 +385,9 @@ function Usuarios() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-2xl font-bold tracking-tight text-foreground">{kpis.total}</span>
+            <span className="font-display text-2xl font-bold tracking-tight text-foreground">
+              {kpis.total}
+            </span>
             <span className="text-xs text-muted-foreground">
               1 Admin · {kpis.auxiliares} {kpis.auxiliares === 1 ? "Auxiliar" : "Auxiliares"}
             </span>
@@ -378,7 +405,9 @@ function Usuarios() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-2xl font-bold tracking-tight text-foreground">{kpis.auxActivos}</span>
+            <span className="font-display text-2xl font-bold tracking-tight text-foreground">
+              {kpis.auxActivos}
+            </span>
             <span className="text-xs text-success">activos</span>
             {kpis.auxSuspendidos > 0 && (
               <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
@@ -393,7 +422,9 @@ function Usuarios() {
 
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Firmas técnicas activas</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Firmas técnicas activas
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
               <PenTool className="h-4 w-4" />
             </div>
@@ -411,7 +442,9 @@ function Usuarios() {
 
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Cobertura RBAC promedio</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Cobertura RBAC promedio
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary">
               <ShieldCheck className="h-4 w-4" />
             </div>
@@ -539,13 +572,19 @@ function Usuarios() {
             <TableBody>
               {q.isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="py-12 text-center text-sm text-muted-foreground"
+                  >
                     Cargando equipo de soporte…
                   </TableCell>
                 </TableRow>
               ) : !filtrados.length ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="py-12 text-center text-sm text-muted-foreground"
+                  >
                     No se encontraron usuarios con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -566,13 +605,17 @@ function Usuarios() {
         <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 bg-muted/20 px-5 py-3.5">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Matriz interactiva de permisos (RBAC)</h2>
+              <h2 className="text-sm font-semibold text-foreground">
+                Matriz interactiva de permisos (RBAC)
+              </h2>
               <p className="text-xs text-muted-foreground">
-                Haga clic en cualquier casilla de un auxiliar para otorgar o revocar ese permiso en tiempo real.
+                Haga clic en cualquier casilla de un auxiliar para otorgar o revocar ese permiso en
+                tiempo real.
               </p>
             </div>
             <Badge variant="secondary" className="font-mono text-[11px]">
-              {filtrados.length} usuario{filtrados.length === 1 ? "" : "s"} × {PERMISOS.length} permisos
+              {filtrados.length} usuario{filtrados.length === 1 ? "" : "s"} × {PERMISOS.length}{" "}
+              permisos
             </Badge>
           </div>
 
@@ -629,7 +672,9 @@ function Usuarios() {
                       <tr key={perm.id} className="transition-colors hover:bg-muted/15">
                         <td className="sticky left-0 z-10 border-r border-border/50 bg-card px-4 py-2.5">
                           <div className="font-medium text-foreground">{perm.label}</div>
-                          <div className="line-clamp-1 text-[11px] text-muted-foreground">{perm.desc}</div>
+                          <div className="line-clamp-1 text-[11px] text-muted-foreground">
+                            {perm.desc}
+                          </div>
                         </td>
                         {filtrados.map((u) => {
                           const esAdm = u.roles.includes("admin");
@@ -804,7 +849,9 @@ function FilaUsuario({
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Acceso total al ecosistema ({PERMISOS.length}/{PERMISOS.length})</span>
+              <span>
+                Acceso total al ecosistema ({PERMISOS.length}/{PERMISOS.length})
+              </span>
             </div>
             <div className="h-1.5 w-40 overflow-hidden rounded-full bg-primary/20">
               <div className="h-full w-full bg-primary" />
@@ -899,7 +946,9 @@ function FilaUsuario({
                 variant="outline"
                 className={cn(
                   "h-8 text-xs",
-                  u.activo ? "hover:border-warning/50 hover:text-warning-foreground" : "text-success",
+                  u.activo
+                    ? "hover:border-warning/50 hover:text-warning-foreground"
+                    : "text-success",
                 )}
                 onClick={toggle}
               >
@@ -932,7 +981,13 @@ function FilaUsuario({
   );
 }
 
-function SelectorPermisos({ value, onChange }: { value: Permiso[]; onChange: (v: Permiso[]) => void }) {
+function SelectorPermisos({
+  value,
+  onChange,
+}: {
+  value: Permiso[];
+  onChange: (v: Permiso[]) => void;
+}) {
   const grupos = [...new Set(PERMISOS.map((p) => p.grupo))];
   const todosIds = PERMISOS.map((p) => p.id);
   const todosMarcados = todosIds.every((id) => value.includes(id));
@@ -965,7 +1020,9 @@ function SelectorPermisos({ value, onChange }: { value: Permiso[]; onChange: (v:
             className="text-xs font-medium text-primary hover:underline"
             onClick={() => onChange(todosMarcados ? [] : [...todosIds])}
           >
-            {todosMarcados ? "Quitar todos (0/12)" : `Marcar todos (${PERMISOS.length}/${PERMISOS.length})`}
+            {todosMarcados
+              ? "Quitar todos (0/12)"
+              : `Marcar todos (${PERMISOS.length}/${PERMISOS.length})`}
           </button>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -1093,7 +1150,8 @@ function EditarPermisos({ u }: { u: Fila }) {
         <DialogHeader>
           <DialogTitle>Permisos de {u.nombre || u.email}</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Seleccione un perfil rápido o personalice los permisos individuales ({sel.length} de {PERMISOS.length} activos).
+            Seleccione un perfil rápido o personalice los permisos individuales ({sel.length} de{" "}
+            {PERMISOS.length} activos).
           </p>
         </DialogHeader>
         <SelectorPermisos value={sel} onChange={setSel} />
@@ -1169,7 +1227,8 @@ function NuevoAuxiliar() {
         <DialogHeader>
           <DialogTitle>Registrar nuevo auxiliar de soporte</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            Cree una cuenta operativa dentro de su ecosistema y asigne su perfil de permisos iniciales.
+            Cree una cuenta operativa dentro de su ecosistema y asigne su perfil de permisos
+            iniciales.
           </p>
         </DialogHeader>
         <form onSubmit={crear} className="space-y-4">
@@ -1197,9 +1256,17 @@ function NuevoAuxiliar() {
 
           <div className="space-y-2 rounded-xl border border-border/80 bg-muted/15 p-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label className="text-xs font-semibold">Contraseña temporal (mín. 8, letras + números/símbolos)</Label>
+              <Label className="text-xs font-semibold">
+                Contraseña temporal (mín. 8, letras + números/símbolos)
+              </Label>
               <div className="flex items-center gap-1.5">
-                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={autogenerar}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={autogenerar}
+                >
                   <Wand2 className="mr-1 h-3 w-3 text-primary" />
                   Generar clave segura
                 </Button>
@@ -1238,7 +1305,9 @@ function NuevoAuxiliar() {
             </div>
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground">Fortaleza de la clave:</span>
-              <span className={cn("font-semibold", evalPwd.etiqueta.cls)}>{evalPwd.etiqueta.texto}</span>
+              <span className={cn("font-semibold", evalPwd.etiqueta.cls)}>
+                {evalPwd.etiqueta.texto}
+              </span>
             </div>
           </div>
 
@@ -1329,7 +1398,13 @@ function CambiarPassword({ u }: { u: Fila }) {
         </DialogHeader>
         <form onSubmit={guardar} className="space-y-4">
           <div className="flex justify-end">
-            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={autogenerar}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={autogenerar}
+            >
               <Wand2 className="mr-1 h-3 w-3 text-primary" />
               Generar clave segura
             </Button>
@@ -1367,7 +1442,9 @@ function CambiarPassword({ u }: { u: Fila }) {
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Fortaleza:</span>
-            <span className={cn("font-semibold", evalPwd.etiqueta.cls)}>{evalPwd.etiqueta.texto}</span>
+            <span className={cn("font-semibold", evalPwd.etiqueta.cls)}>
+              {evalPwd.etiqueta.texto}
+            </span>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -1516,7 +1593,12 @@ function FichaUsuarioSheet({
                 </div>
                 <div className="rounded-xl border border-border/70 bg-muted/15 p-3">
                   <div className="text-[11px] text-muted-foreground">Estado de cuenta</div>
-                  <div className={cn("mt-1 font-semibold", u.activo ? "text-success" : "text-destructive")}>
+                  <div
+                    className={cn(
+                      "mt-1 font-semibold",
+                      u.activo ? "text-success" : "text-destructive",
+                    )}
+                  >
                     {u.activo ? "Activa" : "Suspendida"}
                   </div>
                 </div>
@@ -1532,7 +1614,8 @@ function FichaUsuarioSheet({
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Permisos activos ({esAdmin ? PERMISOS.length : u.permisos.length}/{PERMISOS.length})
+                    Permisos activos ({esAdmin ? PERMISOS.length : u.permisos.length}/
+                    {PERMISOS.length})
                   </h3>
                   {!esAdmin && !esYo && <EditarPermisos u={u} />}
                 </div>
@@ -1580,13 +1663,18 @@ function FichaUsuarioSheet({
                     </p>
                   ) : (
                     actividad.data.map((ev) => (
-                      <div key={ev.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-xs">
+                      <div
+                        key={ev.id}
+                        className="flex items-start justify-between gap-3 px-4 py-2.5 text-xs"
+                      >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="rounded border border-primary/25 bg-primary/10 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-primary">
                               {ev.accion}
                             </span>
-                            <span className="text-[11px] font-medium text-muted-foreground">{ev.tabla}</span>
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {ev.tabla}
+                            </span>
                           </div>
                           {ev.detalle && (
                             <p className="mt-1 truncate text-xs text-foreground">{ev.detalle}</p>

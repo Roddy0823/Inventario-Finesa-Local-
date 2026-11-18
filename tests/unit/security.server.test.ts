@@ -50,13 +50,19 @@ describe("security.server", () => {
 
     it("rechaza firmas vacías o demasiado cortas", () => {
       const r = validarPngBase64(pngDataUrl(crearPng(1, 1)));
-      expect(r).toEqual({ ok: false, error: expect.stringContaining("vacío o es demasiado corto") });
+      expect(r).toEqual({
+        ok: false,
+        error: expect.stringContaining("vacío o es demasiado corto"),
+      });
     });
 
     it("rechaza contenido que no es PNG aunque declare image/png (magic bytes)", () => {
       const falso = new Uint8Array(1_000).fill(0x41);
       const r = validarPngBase64(pngDataUrl(falso));
-      expect(r).toEqual({ ok: false, error: expect.stringContaining("no corresponde a una imagen PNG") });
+      expect(r).toEqual({
+        ok: false,
+        error: expect.stringContaining("no corresponde a una imagen PNG"),
+      });
     });
 
     it("rechaza cabecera IHDR alterada", () => {

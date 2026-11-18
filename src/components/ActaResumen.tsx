@@ -103,7 +103,8 @@ export function ActaResumen({ a }: { a: ActaVista }) {
             {a.equipos.map((q, idx) => {
               const eqNombre = [q.tipo, q.marca, q.modelo].filter(Boolean).join(" ") || "Equipo";
               const esEntrega = q.direccion === "entrega" || (!q.direccion && a.tipo === "entrega");
-              const esDevolucion = q.direccion === "devolucion" || (!q.direccion && a.tipo === "devolucion");
+              const esDevolucion =
+                q.direccion === "devolucion" || (!q.direccion && a.tipo === "devolucion");
 
               return (
                 <li key={`${q.serie}-${idx}`} className="space-y-1.5 p-3 sm:p-3.5">
@@ -136,7 +137,9 @@ export function ActaResumen({ a }: { a: ActaVista }) {
                     <div className="font-mono text-xs font-semibold text-primary">
                       {q.serie}
                       {q.activo_fijo && (
-                        <span className="ml-1.5 font-normal text-muted-foreground">· AF {q.activo_fijo}</span>
+                        <span className="ml-1.5 font-normal text-muted-foreground">
+                          · AF {q.activo_fijo}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -146,7 +149,10 @@ export function ActaResumen({ a }: { a: ActaVista }) {
                       {q.accesorios && (
                         <div className="flex items-center gap-1">
                           <PackageCheck className="h-3 w-3 shrink-0 text-primary/70" />
-                          <span>Accesorios: <b className="font-medium text-foreground">{q.accesorios}</b></span>
+                          <span>
+                            Accesorios:{" "}
+                            <b className="font-medium text-foreground">{q.accesorios}</b>
+                          </span>
                         </div>
                       )}
                       {q.nota && (

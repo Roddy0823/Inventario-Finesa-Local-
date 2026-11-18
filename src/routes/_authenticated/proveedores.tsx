@@ -1,3 +1,5 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -16,9 +18,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import {
+  DataTablePagination,
+  FilasSkeleton,
+  usePaginacion,
+} from "@/components/DataTablePagination";
 import { toast } from "sonner";
 import {
   Building2,
@@ -87,16 +100,24 @@ function Proveedores() {
       let idsArticulo: string[] | null = null;
       if (tipos.length)
         idsArticulo = (
-          (await supabase.from("articulo_proveedores").select("proveedor_id").in("tipo_id", tipos)).data ?? []
+          (await supabase.from("articulo_proveedores").select("proveedor_id").in("tipo_id", tipos))
+            .data ?? []
         ).map((r) => r.proveedor_id);
       const idsTexto = tiposTexto.length
         ? (
-            (await supabase.from("articulo_proveedores").select("proveedor_id").in("tipo_id", tiposTexto)).data ?? []
+            (
+              await supabase
+                .from("articulo_proveedores")
+                .select("proveedor_id")
+                .in("tipo_id", tiposTexto)
+            ).data ?? []
           ).map((r) => r.proveedor_id)
         : [];
       let s = supabase
         .from("proveedores")
-        .select("*, articulo_proveedores(tipo_id), equipos!equipos_proveedor_id_fkey(count)", { count: "exact" });
+        .select("*, articulo_proveedores(tipo_id), equipos!equipos_proveedor_id_fkey(count)", {
+          count: "exact",
+        });
       if (t)
         s = s.or(
           [
@@ -106,7 +127,8 @@ function Proveedores() {
             ...(idsTexto.length ? [`id.in.(${idsTexto.join(",")})`] : []),
           ].join(","),
         );
-      if (idsArticulo) s = s.in("id", idsArticulo.length ? idsArticulo : ["00000000-0000-0000-0000-000000000000"]);
+      if (idsArticulo)
+        s = s.in("id", idsArticulo.length ? idsArticulo : ["00000000-0000-0000-0000-000000000000"]);
       if (etiqueta) s = s.contains("etiquetas", [etiqueta]);
       if (estado) s = s.eq("activo", estado === "activo");
       const { data, count, error } = await s.order("nombre").range(pag.desde, pag.hasta);
@@ -156,6 +178,8 @@ function Proveedores() {
   }
 
   const hayFiltros = Boolean(busca || texto || etiqueta || articulo || estado !== "activo");
+
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
 
   return (
     <div className="space-y-5">
@@ -293,8 +317,12 @@ function Proveedores() {
           <TableBody>
             {q.isLoading && <FilasSkeleton columnas={7} />}
             {(q.data?.filas ?? []).map((p) => {
-              const tipos = ((p.articulo_proveedores ?? []) as { tipo_id: string }[]).map((a) => cat.nombre(a.tipo_id));
-              const n = Array.isArray(p.equipos) ? Number((p.equipos[0] as { count?: number })?.count ?? 0) : 0;
+              const tipos = ((p.articulo_proveedores ?? []) as { tipo_id: string }[]).map((a) =>
+                cat.nombre(a.tipo_id),
+              );
+              const n = Array.isArray(p.equipos)
+                ? Number((p.equipos[0] as { count?: number })?.count ?? 0)
+                : 0;
               const tel = telefonoPrincipal(p);
               return (
                 <TableRow
@@ -330,9 +358,13 @@ function Proveedores() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.nit ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {p.nit ?? "—"}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <div className="text-xs font-medium text-foreground">{p.contacto_nombre || tel || "—"}</div>
+                    <div className="text-xs font-medium text-foreground">
+                      {p.contacto_nombre || tel || "—"}
+                    </div>
                     <div className="text-[11px] text-muted-foreground">
                       {[p.contacto_nombre ? tel : null, p.email].filter(Boolean).join(" · ")}
                     </div>
@@ -344,7 +376,9 @@ function Proveedores() {
                           {e}
                         </Badge>
                       ))}
-                      {!(p.etiquetas ?? []).length && <span className="text-xs text-muted-foreground">—</span>}
+                      {!(p.etiquetas ?? []).length && (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="max-w-56">
@@ -369,7 +403,9 @@ function Proveedores() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className="rounded-md bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium">{n}</span>
+                    <span className="rounded-md bg-muted/60 px-2 py-0.5 font-mono text-xs font-medium">
+                      {n}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="inline-flex items-center gap-1">
@@ -418,7 +454,9 @@ function Proveedores() {
         />
       </div>
 
-      {editar && <FormProveedor p={editar === "nuevo" ? null : editar} onClose={() => setEditar(null)} />}
+      {editar && (
+        <FormProveedor p={editar === "nuevo" ? null : editar} onClose={() => setEditar(null)} />
+      )}
       {pedidoProv && <NuevoPedido inicial={pedidoProv} onClose={() => setPedidoProv(null)} />}
       <DetalleProveedor
         id={ver}
@@ -494,7 +532,9 @@ function DetalleProveedor({
   const [n, setN] = useState({ tipo_id: "", precio: "", ultimo: "" });
   const [recibir, setRecibir] = useState<string | null | undefined>(undefined);
   const refrescar = () => {
-    ["proveedor", "proveedores", "proveedores_articulo"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    ["proveedor", "proveedores", "proveedores_articulo"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k] }),
+    );
   };
   async function vincular() {
     if (!n.tipo_id || !id) return toast.error("Seleccione un tipo de equipo");
@@ -504,7 +544,8 @@ function DetalleProveedor({
       precio_referencia: n.precio ? Number(n.precio) : null,
       ultimo_precio: n.ultimo ? Number(n.ultimo) : null,
     });
-    if (error) return toast.error(error.code === "23505" ? "Ya está vinculado a ese tipo." : errMsg(error));
+    if (error)
+      return toast.error(error.code === "23505" ? "Ya está vinculado a ese tipo." : errMsg(error));
     setN({ tipo_id: "", precio: "", ultimo: "" });
     toast.success("Artículo vinculado al proveedor");
     refrescar();
@@ -519,7 +560,10 @@ function DetalleProveedor({
       .update({ es_principal: false })
       .eq("tipo_id", v.tipo_id)
       .eq("es_principal", true);
-    const { error } = await supabase.from("articulo_proveedores").update({ es_principal: true }).eq("id", v.id);
+    const { error } = await supabase
+      .from("articulo_proveedores")
+      .update({ es_principal: true })
+      .eq("id", v.id);
     if (error) toast.error(errMsg(error));
     else {
       toast.success(`Proveedor principal de ${cat.nombre(v.tipo_id)}`);
@@ -545,11 +589,14 @@ function DetalleProveedor({
     else refrescar();
   }
   const d = q.data;
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyColombia();
   const ya = new Set((d?.vinculos ?? []).map((v) => v.tipo_id));
   const r = d?.resumen;
   const pagEquipos = usePaginacion(id ?? "", 25);
-  const equiposPagina = (d?.equipos ?? []).slice(pagEquipos.desde, pagEquipos.desde + pagEquipos.tamano);
+  const equiposPagina = (d?.equipos ?? []).slice(
+    pagEquipos.desde,
+    pagEquipos.desde + pagEquipos.tamano,
+  );
 
   return (
     <Sheet open={!!id} onOpenChange={(o) => !o && onClose()}>
@@ -573,14 +620,17 @@ function DetalleProveedor({
                           : "border-border bg-muted text-muted-foreground"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${d.p.activo ? "bg-success" : "bg-muted-foreground"}`} />
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${d.p.activo ? "bg-success" : "bg-muted-foreground"}`}
+                      />
                       {d.p.activo ? "Activo" : "Inactivo"}
                     </span>
                   )}
                 </div>
                 {d && (
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {[d.p.nit && `NIT ${d.p.nit}`, d.p.ciudad].filter(Boolean).join(" · ") || "Sin NIT o ciudad"}
+                    {[d.p.nit && `NIT ${d.p.nit}`, d.p.ciudad].filter(Boolean).join(" · ") ||
+                      "Sin NIT o ciudad"}
                   </p>
                 )}
               </div>
@@ -641,7 +691,12 @@ function DetalleProveedor({
               )}
 
               <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-3">
-                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onEditar(d.p)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => onEditar(d.p)}
+                >
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
                   Editar ficha
                 </Button>
@@ -683,7 +738,9 @@ function DetalleProveedor({
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Catálogo de artículos que suministra ({d.vinculos.length})
                 </h3>
-                <span className="text-[11px] text-muted-foreground">★ marca como proveedor principal</span>
+                <span className="text-[11px] text-muted-foreground">
+                  ★ marca como proveedor principal
+                </span>
               </div>
 
               <div className="overflow-hidden rounded-xl border border-border/80 bg-card">
@@ -709,7 +766,9 @@ function DetalleProveedor({
                           >
                             <Star
                               className={`h-4 w-4 ${
-                                v.es_principal ? "fill-warning text-warning" : "text-muted-foreground/40 hover:text-warning"
+                                v.es_principal
+                                  ? "fill-warning text-warning"
+                                  : "text-muted-foreground/40 hover:text-warning"
                               }`}
                             />
                           </button>
@@ -717,7 +776,9 @@ function DetalleProveedor({
                         <TableCell className="font-medium">
                           <div>{cat.nombre(v.tipo_id)}</div>
                           {v.es_principal && (
-                            <span className="text-[10px] font-medium text-warning">Proveedor principal</span>
+                            <span className="text-[10px] font-medium text-warning">
+                              Proveedor principal
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
@@ -742,7 +803,9 @@ function DetalleProveedor({
                             aria-label="Último precio"
                           />
                           {v.ultima_compra && (
-                            <div className="mt-0.5 text-[10px] text-muted-foreground">{fmtFecha(v.ultima_compra)}</div>
+                            <div className="mt-0.5 text-[10px] text-muted-foreground">
+                              {fmtFecha(v.ultima_compra)}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -773,8 +836,12 @@ function DetalleProveedor({
                     ))}
                     {!d.vinculos.length && (
                       <TableRow>
-                        <TableCell colSpan={5} className="py-6 text-center text-xs text-muted-foreground">
-                          Sin artículos vinculados. Usa el formulario inferior para asociar tipos de equipo.
+                        <TableCell
+                          colSpan={5}
+                          className="py-6 text-center text-xs text-muted-foreground"
+                        >
+                          Sin artículos vinculados. Usa el formulario inferior para asociar tipos de
+                          equipo.
                         </TableCell>
                       </TableRow>
                     )}
@@ -824,7 +891,11 @@ function DetalleProveedor({
                     onChange={(e) => setN({ ...n, ultimo: e.target.value })}
                   />
                 </div>
-                <Button className="col-span-2 h-8 text-xs sm:col-span-4" disabled={!n.tipo_id} onClick={vincular}>
+                <Button
+                  className="col-span-2 h-8 text-xs sm:col-span-4"
+                  disabled={!n.tipo_id}
+                  onClick={vincular}
+                >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
                   Vincular artículo al catálogo del proveedor
                 </Button>
@@ -865,7 +936,10 @@ function DetalleProveedor({
               <div className="overflow-hidden rounded-xl border border-border/80 bg-card">
                 <ul className="divide-y divide-border/60">
                   {equiposPagina.map((e) => (
-                    <li key={e.id} className="flex items-center justify-between gap-2 px-3.5 py-2 text-xs">
+                    <li
+                      key={e.id}
+                      className="flex items-center justify-between gap-2 px-3.5 py-2 text-xs"
+                    >
                       <Link
                         to="/equipos/$id"
                         params={{ id: e.id }}
@@ -875,10 +949,14 @@ function DetalleProveedor({
                       </Link>
                       <span className="flex items-center gap-2 text-muted-foreground">
                         <span>
-                          {cat.nombre(e.tipo_id)} {e.modelo ?? ""} · <b className="font-mono text-foreground">{cop(e.valor_compra)}</b>
+                          {cat.nombre(e.tipo_id)} {e.modelo ?? ""} ·{" "}
+                          <b className="font-mono text-foreground">{cop(e.valor_compra)}</b>
                         </span>
                         {e.garantia_fin && (
-                          <Badge variant={e.garantia_fin >= hoy ? "default" : "outline"} className="text-[10px]">
+                          <Badge
+                            variant={e.garantia_fin >= hoy ? "default" : "outline"}
+                            className="text-[10px]"
+                          >
                             {e.garantia_fin >= hoy ? "En garantía" : "Vencida"}
                           </Badge>
                         )}
@@ -904,7 +982,9 @@ function DetalleProveedor({
             </section>
           </div>
         )}
-        {recibir !== undefined && id && <RecibirStock proveedorId={id} onClose={() => setRecibir(undefined)} />}
+        {recibir !== undefined && id && (
+          <RecibirStock proveedorId={id} onClose={() => setRecibir(undefined)} />
+        )}
       </SheetContent>
     </Sheet>
   );

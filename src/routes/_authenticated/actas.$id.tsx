@@ -1,3 +1,4 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,12 +18,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Copy, Download, PenLine, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/actas/$id")({
-  head: () => ({ meta: [{ title: "Acta — Finesa" }, { name: "description", content: "Detalle y firma del acta." }] }),
+  head: () => ({
+    meta: [
+      { title: "Acta — Finesa" },
+      { name: "description", content: "Detalle y firma del acta." },
+    ],
+  }),
   component: DetalleActa,
 });
 
@@ -61,6 +74,7 @@ function DetalleActa() {
   });
 
   const a = q.data?.a;
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
   if (q.isLoading) return <p className="text-muted-foreground">Cargando…</p>;
   if (!a) return <p className="text-muted-foreground">Acta no encontrada.</p>;
 
@@ -122,13 +136,17 @@ function DetalleActa() {
   async function copiarEnlace() {
     try {
       const r = await enlace({ data: { actaId: id } });
-      const link = `${window.location.origin}/firmar/${r.token}`;
+      const link = `${r.origin || window.location.origin}/firmar/${r.token}`;
       setEnlaceGenerado(link);
       const copiado = await copiarTexto(link);
       if (copiado) {
-        toast.success("Enlace copiado. Válido por 15 minutos y un solo uso. Si vence, genere y envíe uno nuevo.");
+        toast.success(
+          "Enlace copiado. Válido por 15 minutos y un solo uso. Si vence, genere y envíe uno nuevo.",
+        );
       } else {
-        toast.info("Enlace generado (15 minutos). Pulse «Copiar» y envíelo. Si vence, genere y envíe uno nuevo.");
+        toast.info(
+          "Enlace generado (15 minutos). Pulse «Copiar» y envíelo. Si vence, genere y envíe uno nuevo.",
+        );
       }
     } catch (e) {
       toast.error(errMsg(e));
@@ -172,11 +190,18 @@ function DetalleActa() {
           </Button>
         )}
         {puedeFirmar && !modo && (
-          <Button onClick={() => setModo(true)}>
+          <Button
+            onClick={() => {
+              setFirma(null);
+              setModo(true);
+            }}
+          >
             <PenLine className="mr-1 h-4 w-4" /> Firma presencial
           </Button>
         )}
-        {me?.isAdmin && a.estado !== "anulada" && <Anular id={id} firmada={a.estado === "firmada"} />}
+        {me?.isAdmin && a.estado !== "anulada" && (
+          <Anular id={id} firmada={a.estado === "firmada"} />
+        )}
       </PageHeader>
 
       {a.estado === "pendiente" && (
@@ -185,9 +210,10 @@ function DetalleActa() {
           <div className="space-y-0.5">
             <p className="font-semibold text-foreground">Acta pendiente de firma</p>
             <p>
-              Esta es la información previa del movimiento. Puede capturar la firma presencial de forma inmediata o
-              generar un enlace seguro para que el colaborador firme desde su dispositivo móvil o computador. Al
-              firmarse, se generará el PDF oficial sellado con SHA-256.
+              Esta es la información previa del movimiento. Puede capturar la firma presencial de
+              forma inmediata o generar un enlace seguro para que el colaborador firme desde su
+              dispositivo móvil o computador. Al firmarse, se generará el PDF oficial sellado con
+              SHA-256.
             </p>
           </div>
         </div>
@@ -224,18 +250,26 @@ function DetalleActa() {
       )}
       {a.estado === "anulada" && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
-          Anulada el {fmtFecha(a.anulada_at, true)}. Motivo: {a.anulada_motivo}. Ajuste manualmente el estado de los
-          equipos si aplica.
+          Anulada el {fmtFecha(a.anulada_at, true)}. Motivo: {a.anulada_motivo}. Ajuste manualmente
+          el estado de los equipos si aplica.
         </div>
       )}
 
       {modo && puedeFirmar && (
         <section className="space-y-3 rounded-xl border border-border/80 bg-card p-5 shadow-2xs">
           <h2 className="text-base font-bold text-foreground">Firma de {emp.nombre}</h2>
-          <p className="text-xs text-muted-foreground">Entregue el dispositivo al colaborador para que firme en pantalla.</p>
-          <SignaturePad onChange={setFirma} />
+          <p className="text-xs text-muted-foreground">
+            Entregue el dispositivo al colaborador para que firme en pantalla.
+          </p>
+          <SignaturePad key={id} onChange={setFirma} />
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setModo(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFirma(null);
+                setModo(false);
+              }}
+            >
               Cancelar
             </Button>
             <Button onClick={confirmarFirma} disabled={!firma || firmando}>
@@ -275,7 +309,8 @@ function Anular({ id, firmada }: { id: string; firmada: boolean }) {
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           Las actas nunca se eliminan físicamente.{" "}
-          {firmada && "Al estar firmada, deberá ajustar manualmente el estado de los equipos si aplica."}
+          {firmada &&
+            "Al estar firmada, deberá ajustar manualmente el estado de los equipos si aplica."}
         </p>
         <div className="space-y-1">
           <Label>Motivo *</Label>

@@ -17,9 +17,15 @@ export const Route = createFileRoute("/firmar/$token")({
   head: () => ({
     meta: [
       { title: "Firma de acta — Finesa" },
-      { name: "description", content: "Firme digitalmente su acta de entrega o devolución de equipos." },
+      {
+        name: "description",
+        content: "Firme digitalmente su acta de entrega o devolución de equipos.",
+      },
       { property: "og:title", content: "Firma de acta — Finesa" },
-      { property: "og:description", content: "Firme digitalmente su acta de entrega o devolución de equipos." },
+      {
+        property: "og:description",
+        content: "Firme digitalmente su acta de entrega o devolución de equipos.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -30,7 +36,11 @@ function FirmarRemoto() {
   const { token } = Route.useParams();
   const obtener = useServerFn(obtenerActaPorToken);
   const firmar = useServerFn(firmarConToken);
-  const q = useQuery({ queryKey: ["firma", token], queryFn: () => obtener({ data: { token } }), retry: false });
+  const q = useQuery({
+    queryKey: ["firma", token],
+    queryFn: () => obtener({ data: { token } }),
+    retry: false,
+  });
   const [firma, setFirma] = useState<string | null>(null);
   const [acepto, setAcepto] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -43,7 +53,10 @@ function FirmarRemoto() {
   useEffect(() => {
     if (!expires) return;
     const actualizar = () => setAhora(Date.now());
-    const timer = window.setTimeout(actualizar, Math.max(0, new Date(expires).getTime() - Date.now()));
+    const timer = window.setTimeout(
+      actualizar,
+      Math.max(0, new Date(expires).getTime() - Date.now()),
+    );
     window.addEventListener("focus", actualizar);
     return () => {
       window.clearTimeout(timer);
@@ -79,10 +92,14 @@ function FirmarRemoto() {
         <ThemeToggle compact />
       </header>
       <main className="mx-auto max-w-xl space-y-5 p-4 pb-16 sm:pt-6">
-        {q.isLoading && <p className="py-12 text-center text-sm text-muted-foreground">Cargando acta…</p>}
+        {q.isLoading && (
+          <p className="py-12 text-center text-sm text-muted-foreground">Cargando acta…</p>
+        )}
         {q.isError && <Aviso texto="El enlace no es válido." />}
         {q.data?.error && !hecho && <Aviso texto={q.data.error} />}
-        {vencido && !hecho && <Aviso texto="El enlace venció. Su vigencia es de 15 minutos desde que se genera." />}
+        {vencido && !hecho && (
+          <Aviso texto="El enlace venció. Su vigencia es de 15 minutos desde que se genera." />
+        )}
         {hecho && (
           <div className="rounded-xl border border-success/30 bg-success/10 p-6 text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
@@ -95,19 +112,30 @@ function FirmarRemoto() {
         {q.data?.acta && !hecho && !vencido && (
           <>
             <ActaResumen a={q.data.acta} />
-            <p className="text-sm text-muted-foreground">Este enlace es válido durante 15 minutos desde su generación. Si vence sin firmar, soporte debe generar y enviar un nuevo enlace.</p>
+            <p className="text-sm text-muted-foreground">
+              Este enlace es válido durante 15 minutos desde su generación. Si vence sin firmar,
+              soporte debe generar y enviar un nuevo enlace.
+            </p>
             <section className="space-y-3 rounded-xl border border-border/80 bg-card p-5 shadow-2xs">
               <h2 className="text-base font-semibold">Su firma electrónica</h2>
               <SignaturePad onChange={setFirma} />
               <label className="flex items-start gap-3 text-xs text-muted-foreground sm:text-sm">
-                <Checkbox checked={acepto} onCheckedChange={(v) => setAcepto(v === true)} className="mt-0.5" />
+                <Checkbox
+                  checked={acepto}
+                  onCheckedChange={(v) => setAcepto(v === true)}
+                  className="mt-0.5"
+                />
                 <span>
-                  Declaro que la información es correcta y acepto firmar electrónicamente esta acta. Se registrará la
-                  fecha, hora y dirección IP de este dispositivo.
+                  Declaro que la información es correcta y acepto firmar electrónicamente esta acta.
+                  Se registrará la fecha, hora y dirección IP de este dispositivo.
                 </span>
               </label>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="h-11 w-full text-sm font-semibold" disabled={!firma || !acepto || enviando} onClick={enviar}>
+              <Button
+                className="h-11 w-full text-sm font-semibold"
+                disabled={!firma || !acepto || enviando}
+                onClick={enviar}
+              >
                 {enviando ? "Registrando firma…" : "Confirmar y firmar acta"}
               </Button>
             </section>
@@ -123,7 +151,9 @@ function Aviso({ texto }: { texto: string }) {
     <div className="rounded-xl border border-warning/40 bg-warning/15 p-6 text-center">
       <AlertTriangle className="mx-auto h-8 w-8 text-warning-foreground" />
       <p className="mt-3 font-medium">{texto}</p>
-      <p className="mt-1 text-sm text-muted-foreground">Solicite al área de soporte que genere y le envíe un nuevo enlace.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Solicite al área de soporte que genere y le envíe un nuevo enlace.
+      </p>
     </div>
   );
 }

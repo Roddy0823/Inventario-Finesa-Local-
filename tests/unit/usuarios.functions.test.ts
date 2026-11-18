@@ -48,7 +48,8 @@ function contexto(userId: string, rol: Rol = {}) {
       if (name === "has_role") return { data: a["_role"] === "admin" ? admin : false };
       if (name === "is_active") return { data: activo };
       if (name === "my_owner_id") return { data: ownerId };
-      if (name === "has_permiso") return { data: activo && (admin || permisos.includes(a["_p"] as string)) };
+      if (name === "has_permiso")
+        return { data: activo && (admin || permisos.includes(a["_p"] as string)) };
       return undefined;
     },
   });
@@ -67,7 +68,9 @@ beforeEach(() => {
   h.anon = anon as unknown as typeof h.anon;
   h.portalActivo = true;
   h.createClientArgs = [];
-  setRequestHeaders({ "x-forwarded-for": `10.1.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` });
+  setRequestHeaders({
+    "x-forwarded-for": `10.1.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`,
+  });
 });
 
 /** Respuesta de user_roles para un usuario objetivo. */
@@ -75,7 +78,9 @@ function rolesObjetivo(roles: { role: string; owner_id: string | null }[]) {
   admin.setOnQuery((q) => {
     if (q.table === "user_roles" && q.op === "select") {
       if (q.single) {
-        const r = roles.find((x) => x.role === filtro(q, "role") && x.owner_id === filtro(q, "owner_id"));
+        const r = roles.find(
+          (x) => x.role === filtro(q, "role") && x.owner_id === filtro(q, "owner_id"),
+        );
         return { data: r ? { id: "rol-1" } : null };
       }
       return { data: roles };
@@ -100,19 +105,30 @@ describe("usuarios.functions", () => {
       usuarios.retirarEmpleado,
     ];
     for (const fn of protegidas) {
-      expect((fn as unknown as { middlewareList: unknown[] }).middlewareList).toEqual([{ __mock: "requireSupabaseAuth" }]);
+      expect((fn as unknown as { middlewareList: unknown[] }).middlewareList).toEqual([
+        { __mock: "requireSupabaseAuth" },
+      ]);
     }
     // El ingreso de empleados es público (aún no hay sesión), protegido por rate limit + PIN.
-    expect((usuarios.ingresoEmpleado as unknown as { middlewareList: unknown[] }).middlewareList).toEqual([]);
+    expect(
+      (usuarios.ingresoEmpleado as unknown as { middlewareList: unknown[] }).middlewareList,
+    ).toEqual([]);
   });
 
   // ---------------------------------------------------------------------------
   describe("crearAuxiliar", () => {
-    const datos = { nombre: "Luis Soporte", email: "Luis@Finesa.com.co", password: "Soporte2026", permisos: ["equipos_editar", "catalogos_editar"] };
+    const datos = {
+      nombre: "Luis Soporte",
+      email: "Luis@Finesa.com.co",
+      password: "Soporte2026",
+      permisos: ["equipos_editar", "catalogos_editar"],
+    };
 
     it("rechaza a usuarios que no son Administrador", async () => {
       const { context } = contexto(AUX, { ownerId: ADMIN, permisos: ["empleados_editar"] });
-      await expect(call(usuarios.crearAuxiliar, datos, context)).resolves.toEqual({ error: "Solo el Administrador puede realizar esta acción." });
+      await expect(call(usuarios.crearAuxiliar, datos, context)).resolves.toEqual({
+        error: "Solo el Administrador puede realizar esta acción.",
+      });
       expect(admin.client.auth.admin.createUser).not.toHaveBeenCalled();
     });
 
@@ -122,13 +138,19 @@ describe("usuarios.functions", () => {
     });
 
     it("aplica la política de contraseñas", async () => {
-      const r = await call(usuarios.crearAuxiliar, { ...datos, password: "soloLetras" }, adminCtx().context);
+      const r = await call(
+        usuarios.crearAuxiliar,
+        { ...datos, password: "soloLetras" },
+        adminCtx().context,
+      );
       expect(r["error"]).toContain("letra y un número");
       expect(admin.client.auth.admin.createUser).not.toHaveBeenCalled();
     });
 
     it("valida la entrada con zod (permisos desconocidos)", () => {
-      expect(() => call(usuarios.crearAuxiliar, { ...datos, permisos: ["admin_total"] }, adminCtx().context)).toThrow();
+      expect(() =>
+        call(usuarios.crearAuxiliar, { ...datos, permisos: ["admin_total"] }, adminCtx().context),
+      ).toThrow();
     });
 
     it("crea el auxiliar en el ecosistema del admin, nunca con rol admin", async () => {
@@ -141,21 +163,49 @@ describe("usuarios.functions", () => {
         password: "Soporte2026",
         email_confirm: true,
         user_metadata: { nombre: "Luis Soporte" },
-        app_metadata: { permisos_extra: ["catalogos_editar"] },
       });
-      expect(admin.find("user_roles", "insert")[0]!.payload).toEqual({ user_id: nuevoId, role: "auxiliar", owner_id: ADMIN });
-      expect(admin.find("user_permisos", "insert")[0]!.payload).toEqual([{ user_id: nuevoId, permiso: "equipos_editar" }]);
-      expect(admin.auditorias()).toEqual([expect.objectContaining({ user_id: ADMIN, accion: "CREAR_AUXILIAR", registro_id: nuevoId })]);
+      expect(admin.find("user_roles", "insert")[0]!.payload).toEqual({
+        user_id: nuevoId,
+        role: "auxiliar",
+        owner_id: ADMIN,
+      });
+      expect(admin.rpcs).toContainEqual({
+        name: "reemplazar_permisos_usuario",
+        args: {
+          p_user: nuevoId,
+          p_permisos: ["equipos_editar", "catalogos_editar"],
+          p_actor: ADMIN,
+        },
+      });
+      expect(admin.auditorias()).toEqual([
+        expect.objectContaining({ user_id: ADMIN, accion: "CREAR_AUXILIAR", registro_id: nuevoId }),
+      ]);
     });
 
-    it("no inserta user_permisos si solo hay permisos extra", async () => {
-      await call(usuarios.crearAuxiliar, { ...datos, permisos: ["estadisticas_ver"] }, adminCtx().context);
-      expect(admin.find("user_permisos", "insert")).toHaveLength(0);
+    it("incluye permisos extra en la misma operación transaccional", async () => {
+      await call(
+        usuarios.crearAuxiliar,
+        { ...datos, permisos: ["estadisticas_ver"] },
+        adminCtx().context,
+      );
+      expect(admin.rpcs).toContainEqual({
+        name: "reemplazar_permisos_usuario",
+        args: {
+          p_user: "11111111-1111-4111-8111-111111111111",
+          p_permisos: ["estadisticas_ver"],
+          p_actor: ADMIN,
+        },
+      });
     });
 
     it("traduce el error de correo duplicado", async () => {
-      admin.client.auth.admin.createUser.mockResolvedValueOnce({ data: { user: null }, error: { message: "A user with this email address has already been registered" } });
-      await expect(call(usuarios.crearAuxiliar, datos, adminCtx().context)).resolves.toEqual({ error: "Ya existe un usuario con ese correo." });
+      admin.client.auth.admin.createUser.mockResolvedValueOnce({
+        data: { user: null },
+        error: { message: "A user with this email address has already been registered" },
+      });
+      await expect(call(usuarios.crearAuxiliar, datos, adminCtx().context)).resolves.toEqual({
+        error: "Ya existe un usuario con ese correo.",
+      });
       expect(admin.find("user_roles")).toHaveLength(0);
     });
   });
@@ -164,7 +214,11 @@ describe("usuarios.functions", () => {
   describe("actualizarDatosAuxiliar", () => {
     it("solo edita auxiliares del propio ecosistema", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: OTRO_ADMIN }]);
-      const r = await call(usuarios.actualizarDatosAuxiliar, { userId: AUX, nombre: "Nuevo" }, adminCtx().context);
+      const r = await call(
+        usuarios.actualizarDatosAuxiliar,
+        { userId: AUX, nombre: "Nuevo" },
+        adminCtx().context,
+      );
       expect(r).toEqual({ error: "Solo se pueden editar auxiliares de su ecosistema." });
       expect(admin.find("profiles", "update")).toHaveLength(0);
     });
@@ -175,9 +229,17 @@ describe("usuarios.functions", () => {
         if (q.table === "profiles" && q.op === "select") return { data: { nombre: "Viejo" } };
         return undefined;
       });
-      await expect(call(usuarios.actualizarDatosAuxiliar, { userId: AUX, nombre: "Nuevo" }, adminCtx().context)).resolves.toEqual({ ok: true });
+      await expect(
+        call(
+          usuarios.actualizarDatosAuxiliar,
+          { userId: AUX, nombre: "Nuevo" },
+          adminCtx().context,
+        ),
+      ).resolves.toEqual({ ok: true });
       expect(admin.find("profiles", "update")[0]!.payload).toEqual({ nombre: "Nuevo" });
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, { user_metadata: { nombre: "Nuevo" } });
+      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, {
+        user_metadata: { nombre: "Nuevo" },
+      });
       expect(admin.auditorias()[0]!.detalle).toBe("Nombre de auxiliar actualizado: Viejo → Nuevo");
     });
   });
@@ -186,48 +248,80 @@ describe("usuarios.functions", () => {
   describe("actualizarPermisos", () => {
     it("rechaza auxiliares de otro ecosistema", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: OTRO_ADMIN }]);
-      const r = await call(usuarios.actualizarPermisos, { userId: AUX, permisos: ["equipos_editar"] }, adminCtx().context);
-      expect(r).toEqual({ error: "Solo se pueden configurar permisos de auxiliares de su ecosistema." });
+      const r = await call(
+        usuarios.actualizarPermisos,
+        { userId: AUX, permisos: ["equipos_editar"] },
+        adminCtx().context,
+      );
+      expect(r).toEqual({
+        error: "Solo se pueden configurar permisos de auxiliares de su ecosistema.",
+      });
       expect(admin.find("user_permisos")).toHaveLength(0);
     });
 
     it("reemplaza permisos de BD y conserva el resto de app_metadata", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: ADMIN }]);
-      admin.client.auth.admin.getUserById.mockResolvedValueOnce({ data: { user: { id: AUX, app_metadata: { provider: "email", permisos_extra: ["proveedores_editar"] } } }, error: null });
+      admin.client.auth.admin.getUserById.mockResolvedValueOnce({
+        data: {
+          user: {
+            id: AUX,
+            app_metadata: { provider: "email", permisos_extra: ["proveedores_editar"] },
+          },
+        },
+        error: null,
+      });
 
-      const r = await call(usuarios.actualizarPermisos, { userId: AUX, permisos: ["actas_entrega", "firmas_capturar", "catalogos_editar"] }, adminCtx().context);
+      const r = await call(
+        usuarios.actualizarPermisos,
+        { userId: AUX, permisos: ["actas_entrega", "firmas_capturar", "catalogos_editar"] },
+        adminCtx().context,
+      );
       expect(r).toEqual({ ok: true });
 
-      const [del] = admin.find("user_permisos", "delete");
-      expect(filtro(del!, "user_id")).toBe(AUX);
-      expect(admin.find("user_permisos", "insert")[0]!.payload).toEqual([
-        { user_id: AUX, permiso: "actas_entrega" },
-        { user_id: AUX, permiso: "firmas_capturar" },
-      ]);
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, { app_metadata: { provider: "email", permisos_extra: ["catalogos_editar"] } });
-      expect(admin.auditorias()[0]).toMatchObject({ accion: "PERMISOS", registro_id: AUX });
+      expect(admin.rpcs).toContainEqual({
+        name: "reemplazar_permisos_usuario",
+        args: {
+          p_user: AUX,
+          p_permisos: ["actas_entrega", "firmas_capturar", "catalogos_editar"],
+          p_actor: ADMIN,
+        },
+      });
+      expect(admin.find("user_permisos")).toHaveLength(0);
+      expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
     it("permite dejar al auxiliar sin permisos", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: ADMIN }]);
       await call(usuarios.actualizarPermisos, { userId: AUX, permisos: [] }, adminCtx().context);
-      expect(admin.find("user_permisos", "delete")).toHaveLength(1);
-      expect(admin.find("user_permisos", "insert")).toHaveLength(0);
-      expect(admin.auditorias()[0]!.detalle).toContain("ninguno");
+      expect(admin.rpcs).toContainEqual({
+        name: "reemplazar_permisos_usuario",
+        args: { p_user: AUX, p_permisos: [], p_actor: ADMIN },
+      });
     });
   });
 
   // ---------------------------------------------------------------------------
   describe("obtenerPermisosExtraUsuarios", () => {
     it("devuelve vacío para no administradores sin consultar auth", async () => {
-      const r = await call(usuarios.obtenerPermisosExtraUsuarios, undefined, contexto(AUX, { ownerId: ADMIN }).context);
+      const r = await call(
+        usuarios.obtenerPermisosExtraUsuarios,
+        undefined,
+        contexto(AUX, { ownerId: ADMIN }).context,
+      );
       expect(r).toEqual({ extras: {} });
       expect(admin.client.auth.admin.getUserById).not.toHaveBeenCalled();
     });
 
     it("filtra valores no textuales de permisos_extra", async () => {
-      admin.setOnQuery((q) => (q.table === "user_roles" ? { data: [{ user_id: AUX }] } : undefined));
-      admin.client.auth.admin.getUserById.mockResolvedValueOnce({ data: { user: { id: AUX, app_metadata: { permisos_extra: ["catalogos_editar", 42, null] } } }, error: null });
+      admin.setOnQuery((q) =>
+        q.table === "user_roles" ? { data: [{ user_id: AUX }] } : undefined,
+      );
+      admin.client.auth.admin.getUserById.mockResolvedValueOnce({
+        data: {
+          user: { id: AUX, app_metadata: { permisos_extra: ["catalogos_editar", 42, null] } },
+        },
+        error: null,
+      });
       const r = await call(usuarios.obtenerPermisosExtraUsuarios, undefined, adminCtx().context);
       expect(r).toEqual({ extras: { [AUX]: ["catalogos_editar"] } });
       const [q] = admin.find("user_roles", "select");
@@ -240,26 +334,55 @@ describe("usuarios.functions", () => {
     const crear = { accion: "crear", tipo: "marca", nombre: "Lenovo" };
 
     it("niega el acceso a cuentas inactivas o sin ecosistema", async () => {
-      expect(await call(usuarios.gestionarCatalogo, crear, contexto(ADMIN, { admin: true, activo: false }).context)).toEqual({ error: "Sin acceso." });
-      expect(await call(usuarios.gestionarCatalogo, crear, contexto(AUX, { ownerId: null }).context)).toEqual({ error: "Sin acceso." });
+      expect(
+        await call(
+          usuarios.gestionarCatalogo,
+          crear,
+          contexto(ADMIN, { admin: true, activo: false }).context,
+        ),
+      ).toEqual({ error: "Sin acceso." });
+      expect(
+        await call(usuarios.gestionarCatalogo, crear, contexto(AUX, { ownerId: null }).context),
+      ).toEqual({ error: "Sin acceso." });
     });
 
     it("niega a auxiliares sin el permiso extra catalogos_editar", async () => {
-      const r = await call(usuarios.gestionarCatalogo, crear, contexto(AUX, { ownerId: ADMIN }).context);
+      const r = await call(
+        usuarios.gestionarCatalogo,
+        crear,
+        contexto(AUX, { ownerId: ADMIN }).context,
+      );
       expect(r).toEqual({ error: "No tiene permiso para gestionar catálogos." });
       expect(admin.find("catalogo_items")).toHaveLength(0);
     });
 
     it("auxiliar con catalogos_editar crea en el ecosistema de su admin", async () => {
-      admin.client.auth.admin.getUserById.mockResolvedValueOnce({ data: { user: { id: AUX, app_metadata: { permisos_extra: ["catalogos_editar"] } } }, error: null });
-      await expect(call(usuarios.gestionarCatalogo, crear, contexto(AUX, { ownerId: ADMIN }).context)).resolves.toEqual({ ok: true });
-      expect(admin.find("catalogo_items", "insert")[0]!.payload).toEqual({ tipo: "marca", nombre: "Lenovo", owner_id: ADMIN });
-      expect(admin.auditorias()[0]).toMatchObject({ user_id: AUX, tabla: "catalogo_items", accion: "CREAR" });
+      admin.client.auth.admin.getUserById.mockResolvedValueOnce({
+        data: { user: { id: AUX, app_metadata: { permisos_extra: ["catalogos_editar"] } } },
+        error: null,
+      });
+      await expect(
+        call(usuarios.gestionarCatalogo, crear, contexto(AUX, { ownerId: ADMIN }).context),
+      ).resolves.toEqual({ ok: true });
+      expect(admin.find("catalogo_items", "insert")[0]!.payload).toEqual({
+        tipo: "marca",
+        nombre: "Lenovo",
+        owner_id: ADMIN,
+      });
+      expect(admin.auditorias()[0]).toMatchObject({
+        user_id: AUX,
+        tabla: "catalogo_items",
+        accion: "CREAR",
+      });
     });
 
     it("limita renombrar/activar/eliminar al ecosistema propio", async () => {
       const ctx = adminCtx().context;
-      await call(usuarios.gestionarCatalogo, { accion: "renombrar", id: CAT_ID, nombre: "HP" }, ctx);
+      await call(
+        usuarios.gestionarCatalogo,
+        { accion: "renombrar", id: CAT_ID, nombre: "HP" },
+        ctx,
+      );
       await call(usuarios.gestionarCatalogo, { accion: "toggle", id: CAT_ID, activo: false }, ctx);
       await call(usuarios.gestionarCatalogo, { accion: "eliminar", id: CAT_ID }, ctx);
       const qs = admin.find("catalogo_items");
@@ -268,38 +391,76 @@ describe("usuarios.functions", () => {
         expect(filtro(q, "id")).toBe(CAT_ID);
         expect(filtro(q, "owner_id")).toBe(ADMIN);
       }
-      expect(admin.auditorias().map((a) => a.accion)).toEqual(["RENOMBRAR", "DESACTIVAR", "ELIMINAR"]);
+      expect(admin.auditorias().map((a) => a.accion)).toEqual([
+        "RENOMBRAR",
+        "DESACTIVAR",
+        "ELIMINAR",
+      ]);
     });
 
     it("traduce duplicados (23505) y elementos en uso (23503)", async () => {
-      admin.setOnQuery((q) => (q.op === "insert" && q.table === "catalogo_items" ? { error: { message: "dup", code: "23505" } } : q.op === "delete" ? { error: { message: "fk", code: "23503" } } : undefined));
+      admin.setOnQuery((q) =>
+        q.op === "insert" && q.table === "catalogo_items"
+          ? { error: { message: "dup", code: "23505" } }
+          : q.op === "delete"
+            ? { error: { message: "fk", code: "23503" } }
+            : undefined,
+      );
       const ctx = adminCtx().context;
-      expect(await call(usuarios.gestionarCatalogo, crear, ctx)).toEqual({ error: "Ya existe ese nombre." });
-      expect(await call(usuarios.gestionarCatalogo, { accion: "eliminar", id: CAT_ID }, ctx)).toEqual({ error: "Este ítem está en uso. Solo puede desactivarlo." });
+      expect(await call(usuarios.gestionarCatalogo, crear, ctx)).toEqual({
+        error: "Ya existe ese nombre.",
+      });
+      expect(
+        await call(usuarios.gestionarCatalogo, { accion: "eliminar", id: CAT_ID }, ctx),
+      ).toEqual({ error: "Este ítem está en uso. Solo puede desactivarlo." });
       expect(admin.auditorias()).toHaveLength(0);
     });
 
     it("rechaza tipos de catálogo no permitidos", () => {
-      expect(() => call(usuarios.gestionarCatalogo, { accion: "crear", tipo: "rol", nombre: "x" }, adminCtx().context)).toThrow();
+      expect(() =>
+        call(
+          usuarios.gestionarCatalogo,
+          { accion: "crear", tipo: "rol", nombre: "x" },
+          adminCtx().context,
+        ),
+      ).toThrow();
     });
   });
 
   // ---------------------------------------------------------------------------
   describe("cambiarEstadoUsuario", () => {
     it("impide suspender la propia cuenta", async () => {
-      expect(await call(usuarios.cambiarEstadoUsuario, { userId: ADMIN, activo: false }, adminCtx().context)).toEqual({ error: "No puede suspender su propia cuenta." });
+      expect(
+        await call(
+          usuarios.cambiarEstadoUsuario,
+          { userId: ADMIN, activo: false },
+          adminCtx().context,
+        ),
+      ).toEqual({ error: "No puede suspender su propia cuenta." });
     });
 
     it("impide gestionar cuentas de Administrador desde la app", async () => {
       rolesObjetivo([{ role: "admin", owner_id: null }]);
-      const r = await call(usuarios.cambiarEstadoUsuario, { userId: OTRO_ADMIN, activo: false }, adminCtx().context);
-      expect(r).toEqual({ error: "Las cuentas de Administrador solo se gestionan en la base de datos." });
+      const r = await call(
+        usuarios.cambiarEstadoUsuario,
+        { userId: OTRO_ADMIN, activo: false },
+        adminCtx().context,
+      );
+      expect(r).toEqual({
+        error: "Las cuentas de Administrador solo se gestionan en la base de datos.",
+      });
       expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
     it("impide gestionar auxiliares de otro ecosistema", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: OTRO_ADMIN }]);
-      expect(await call(usuarios.cambiarEstadoUsuario, { userId: AUX, activo: false }, adminCtx().context)).toEqual({ error: "No tiene autorización sobre este usuario." });
+      expect(
+        await call(
+          usuarios.cambiarEstadoUsuario,
+          { userId: AUX, activo: false },
+          adminCtx().context,
+        ),
+      ).toEqual({ error: "No tiene autorización sobre este usuario." });
     });
 
     it.each([
@@ -307,8 +468,12 @@ describe("usuarios.functions", () => {
       [true, "none", "REACTIVAR"],
     ])("activo=%s aplica ban_duration=%s y audita %s", async (activo, ban, accion) => {
       rolesObjetivo([{ role: "auxiliar", owner_id: ADMIN }]);
-      expect(await call(usuarios.cambiarEstadoUsuario, { userId: AUX, activo }, adminCtx().context)).toEqual({ ok: true });
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, { ban_duration: ban });
+      expect(
+        await call(usuarios.cambiarEstadoUsuario, { userId: AUX, activo }, adminCtx().context),
+      ).toEqual({ ok: true });
+      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, {
+        ban_duration: ban,
+      });
       expect(admin.find("profiles", "update")[0]!.payload).toEqual({ activo });
       expect(admin.auditorias()[0]!.accion).toBe(accion);
     });
@@ -321,15 +486,29 @@ describe("usuarios.functions", () => {
         { role: "auxiliar", owner_id: ADMIN },
         { role: "admin", owner_id: null },
       ]);
-      const r = await call(usuarios.cambiarPasswordAuxiliar, { userId: AUX, password: "Nueva2026!" }, adminCtx().context);
-      expect(r).toEqual({ error: "Solo se puede cambiar la contraseña de auxiliares de su ecosistema." });
+      const r = await call(
+        usuarios.cambiarPasswordAuxiliar,
+        { userId: AUX, password: "Nueva2026!" },
+        adminCtx().context,
+      );
+      expect(r).toEqual({
+        error: "Solo se puede cambiar la contraseña de auxiliares de su ecosistema.",
+      });
       expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
     it("cambia la contraseña de un auxiliar propio y audita sin registrar la clave", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: ADMIN }]);
-      expect(await call(usuarios.cambiarPasswordAuxiliar, { userId: AUX, password: "Nueva2026!" }, adminCtx().context)).toEqual({ ok: true });
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, { password: "Nueva2026!" });
+      expect(
+        await call(
+          usuarios.cambiarPasswordAuxiliar,
+          { userId: AUX, password: "Nueva2026!" },
+          adminCtx().context,
+        ),
+      ).toEqual({ ok: true });
+      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(AUX, {
+        password: "Nueva2026!",
+      });
       expect(JSON.stringify(admin.auditorias())).not.toContain("Nueva2026!");
     });
   });
@@ -337,31 +516,46 @@ describe("usuarios.functions", () => {
   // ---------------------------------------------------------------------------
   describe("eliminarAuxiliar", () => {
     it("impide eliminar la propia cuenta", async () => {
-      expect(await call(usuarios.eliminarAuxiliar, { userId: ADMIN }, adminCtx().context)).toEqual({ error: "No puede eliminar su propia cuenta." });
+      expect(await call(usuarios.eliminarAuxiliar, { userId: ADMIN }, adminCtx().context)).toEqual({
+        error: "No puede eliminar su propia cuenta.",
+      });
     });
 
     it("impide eliminar auxiliares ajenos", async () => {
       rolesObjetivo([{ role: "auxiliar", owner_id: OTRO_ADMIN }]);
-      expect(await call(usuarios.eliminarAuxiliar, { userId: AUX }, adminCtx().context)).toHaveProperty("error");
+      expect(
+        await call(usuarios.eliminarAuxiliar, { userId: AUX }, adminCtx().context),
+      ).toHaveProperty("error");
       expect(admin.client.auth.admin.deleteUser).not.toHaveBeenCalled();
     });
 
-    it("audita ANTES de borrar y limpia permisos, roles, perfil y usuario", async () => {
+    it("elimina mediante Auth y registra la operación confirmada", async () => {
       admin.setOnQuery((q) => {
-        if (q.table === "user_roles" && q.op === "select") return { data: [{ role: "auxiliar", owner_id: ADMIN }] };
-        if (q.table === "profiles" && q.op === "select") return { data: { email: "aux@finesa.com.co", nombre: "Aux" } };
+        if (q.table === "user_roles" && q.op === "select")
+          return { data: [{ role: "auxiliar", owner_id: ADMIN }] };
+        if (q.table === "profiles" && q.op === "select")
+          return { data: { email: "aux@finesa.com.co", nombre: "Aux" } };
         return undefined;
       });
-      expect(await call(usuarios.eliminarAuxiliar, { userId: AUX }, adminCtx().context)).toEqual({ ok: true });
+      expect(await call(usuarios.eliminarAuxiliar, { userId: AUX }, adminCtx().context)).toEqual({
+        ok: true,
+      });
       const orden = admin.queries.filter((q) => q.op !== "select").map((q) => `${q.op}:${q.table}`);
-      expect(orden).toEqual(["insert:auditoria", "delete:user_permisos", "delete:user_roles", "delete:profiles"]);
+      expect(orden).toEqual(["insert:auditoria"]);
       expect(admin.client.auth.admin.deleteUser).toHaveBeenCalledWith(AUX);
     });
   });
 
   // ---------------------------------------------------------------------------
   describe("habilitarAccesoEmpleado", () => {
-    const empleado = { id: EMP_ID, nombre: "Ana Pérez", identificacion: "1.234.567", activo: true, user_id: null as string | null };
+    const empleado = {
+      id: EMP_ID,
+      nombre: "Ana Pérez",
+      identificacion: "1.234.567",
+      activo: true,
+      owner_id: ADMIN,
+      user_id: null as string | null,
+    };
 
     function conEmpleado(emp: typeof empleado | null, permisos = ["empleados_editar"]) {
       const c = contexto(AUX, { ownerId: ADMIN, permisos });
@@ -370,64 +564,150 @@ describe("usuarios.functions", () => {
     }
 
     it("exige el permiso empleados_editar", async () => {
-      expect(await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(empleado, []))).toEqual({ error: "No tiene permiso para habilitar accesos." });
+      expect(
+        await call(
+          usuarios.habilitarAccesoEmpleado,
+          { empleadoId: EMP_ID },
+          conEmpleado(empleado, []),
+        ),
+      ).toEqual({ error: "No tiene permiso para habilitar accesos." });
     });
 
     it("rechaza empleados inexistentes (o fuera del ecosistema por RLS) e inactivos", async () => {
-      expect(await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(null))).toEqual({ error: "Empleado no encontrado" });
-      expect(await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado({ ...empleado, activo: false }))).toEqual({ error: "El empleado está inactivo." });
+      expect(
+        await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(null)),
+      ).toEqual({ error: "Empleado no encontrado" });
+      expect(
+        await call(
+          usuarios.habilitarAccesoEmpleado,
+          { empleadoId: EMP_ID },
+          conEmpleado({ ...empleado, activo: false }),
+        ),
+      ).toEqual({ error: "El empleado está inactivo." });
     });
 
     it("crea la cuenta con correo interno + HMAC del PIN y devuelve un PIN de 4 dígitos", async () => {
-      const r = await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(empleado));
+      const r = await call(
+        usuarios.habilitarAccesoEmpleado,
+        { empleadoId: EMP_ID },
+        conEmpleado(empleado),
+      );
       expect(r["cedula"]).toBe("1234567");
       expect(r["pin"]).toMatch(/^\d{4}$/);
 
       const [args] = admin.client.auth.admin.createUser.mock.calls[0]!;
-      expect(args).toMatchObject({ email: "1234567@empleados.finesa.local", email_confirm: true, password: passwordEmpleado("1234567", r["pin"] as string) });
+      expect(args).toMatchObject({
+        email: "1234567@empleados.finesa.local",
+        email_confirm: true,
+        password: passwordEmpleado("1234567", r["pin"] as string),
+      });
 
       const nuevo = "11111111-1111-4111-8111-111111111111";
-      expect(admin.find("user_roles", "upsert")[0]!.payload).toEqual({ user_id: nuevo, role: "empleado" });
-      expect(admin.find("empleados", "update")[0]!.payload).toEqual({ user_id: nuevo, pin_intentos: 0, pin_bloqueo_hasta: null });
+      expect(admin.find("user_roles", "insert")[0]!.payload).toEqual({
+        user_id: nuevo,
+        role: "empleado",
+        owner_id: ADMIN,
+      });
+      expect(admin.find("empleados", "update")[0]!.payload).toEqual({
+        user_id: nuevo,
+        pin_intentos: 0,
+        pin_bloqueo_hasta: null,
+      });
       // El PIN nunca se escribe en la auditoría.
       expect(admin.auditorias()[0]!.detalle).not.toContain(r["pin"] as string);
     });
 
     it("no reutiliza cuentas de Administrador o Auxiliar", async () => {
-      admin.setOnQuery((q) => (q.table === "user_roles" ? { data: [{ role: "auxiliar" }] } : undefined));
-      const r = await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado({ ...empleado, user_id: EMP_USER }));
-      expect(r).toEqual({ error: "Este empleado está vinculado a una cuenta de Administrador o Auxiliar." });
+      admin.setOnQuery((q) =>
+        q.table === "user_roles" ? { data: [{ role: "auxiliar" }] } : undefined,
+      );
+      const r = await call(
+        usuarios.habilitarAccesoEmpleado,
+        { empleadoId: EMP_ID },
+        conEmpleado({ ...empleado, user_id: EMP_USER }),
+      );
+      expect(r).toEqual({
+        error: "Este empleado está vinculado a una cuenta de Administrador o Auxiliar.",
+      });
       expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
     it("regenera el PIN de una cuenta de empleado existente y levanta el baneo", async () => {
-      admin.setOnQuery((q) => (q.table === "user_roles" ? { data: [{ role: "empleado" }] } : undefined));
-      const r = await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado({ ...empleado, user_id: EMP_USER }));
+      admin.setOnQuery((q) =>
+        q.table === "user_roles" ? { data: [{ role: "empleado" }] } : undefined,
+      );
+      const r = await call(
+        usuarios.habilitarAccesoEmpleado,
+        { empleadoId: EMP_ID },
+        conEmpleado({ ...empleado, user_id: EMP_USER }),
+      );
       expect(admin.client.auth.admin.createUser).not.toHaveBeenCalled();
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(EMP_USER, expect.objectContaining({ ban_duration: "none", password: passwordEmpleado("1234567", r["pin"] as string) }));
+      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(
+        EMP_USER,
+        expect.objectContaining({
+          ban_duration: "none",
+          password: passwordEmpleado("1234567", r["pin"] as string),
+        }),
+      );
     });
 
     it("impide vincular una cédula que ya pertenece a otro empleado", async () => {
-      admin.client.auth.admin.createUser.mockResolvedValueOnce({ data: { user: null }, error: { message: "User already registered" } });
+      admin.client.auth.admin.createUser.mockResolvedValueOnce({
+        data: { user: null },
+        error: { message: "User already registered" },
+      });
       admin.setOnQuery((q) => {
         if (q.table === "profiles" && q.op === "select") return { data: { id: EMP_USER } };
         if (q.table === "empleados" && q.op === "select") return { data: { id: "otro-empleado" } };
         return undefined;
       });
-      expect(await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(empleado))).toEqual({ error: "Esa cédula ya está vinculada a otro empleado." });
+      expect(
+        await call(usuarios.habilitarAccesoEmpleado, { empleadoId: EMP_ID }, conEmpleado(empleado)),
+      ).toEqual({
+        error:
+          "Ya existe una cuenta con esa cédula. El Administrador debe revisar la vinculación; no se modificaron sus credenciales.",
+      });
+      expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
   });
 
   // ---------------------------------------------------------------------------
   describe("ingresoEmpleado", () => {
-    const empRow = { id: EMP_ID, identificacion: "1.234.567", activo: true, user_id: EMP_USER, pin_intentos: 0, pin_bloqueo_hasta: null as string | null };
+    const empRow = {
+      id: EMP_ID,
+      identificacion: "1.234.567",
+      activo: true,
+      user_id: EMP_USER,
+      pin_intentos: 0,
+      pin_bloqueo_hasta: null as string | null,
+    };
 
     function conEmpleados(lista: (typeof empRow)[]) {
-      admin.setOnQuery((q) => (q.table === "empleados" && q.op === "select" ? { data: lista } : undefined));
+      admin.setOnQuery((q) => {
+        if (q.table === "empleados" && q.op === "select")
+          return {
+            data:
+              lista.find(
+                (e) =>
+                  e.identificacion.replace(/[^0-9A-Za-z]/g, "").toUpperCase() ===
+                  filtro(q, "identificacion_normalizada"),
+              ) ?? null,
+          };
+        if (q.table === "user_roles" && q.op === "select") return { data: [{ role: "empleado" }] };
+        return undefined;
+      });
+      admin.setOnRpc((name) =>
+        name === "reservar_intento_pin"
+          ? { data: { permitido: true, lease_id: "pin-lease", intentos: 1, bloqueo_hasta: null } }
+          : undefined,
+      );
     }
 
     function loginOk() {
-      anon.client.auth.signInWithPassword.mockResolvedValueOnce({ data: { session: { access_token: "at", refresh_token: "rt" } }, error: null });
+      anon.client.auth.signInWithPassword.mockResolvedValueOnce({
+        data: { session: { access_token: "at", refresh_token: "rt" }, user: { id: EMP_USER } },
+        error: null,
+      });
     }
 
     it("valida formato: PIN de exactamente 4 dígitos", () => {
@@ -437,24 +717,33 @@ describe("usuarios.functions", () => {
 
     it("se bloquea si el portal de empleados está deshabilitado", async () => {
       h.portalActivo = false;
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({ error: "El portal de empleados se encuentra deshabilitado." });
+      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({
+        error: "El portal de empleados se encuentra deshabilitado.",
+      });
       expect(admin.find("empleados")).toHaveLength(0);
     });
 
     it("responde con un mensaje genérico si la cédula no existe (evita enumeración)", async () => {
       conEmpleados([{ ...empRow, identificacion: "9991234567" }]);
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({ error: "Cédula o PIN incorrectos." });
+      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({
+        error: "Cédula o PIN incorrectos.",
+      });
       const [q] = admin.find("empleados", "select");
-      expect(filtro(q!, "identificacion", "ilike")).toBe("%4567%");
+      expect(filtro(q!, "identificacion_normalizada")).toBe("1234567");
       expect(anon.client.auth.signInWithPassword).not.toHaveBeenCalled();
     });
 
     it("rechaza empleados inactivos y bloqueados", async () => {
       conEmpleados([{ ...empRow, activo: false }]);
-      expect((await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" }))["error"]).toContain("suspendido");
+      expect(
+        (await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" }))["error"],
+      ).toContain("suspendido");
 
-      conEmpleados([{ ...empRow, pin_bloqueo_hasta: new Date(Date.now() + 60_000).toISOString() }]);
-      expect((await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" }))["error"]).toContain("15 minutos");
+      conEmpleados([empRow]);
+      admin.setOnRpc(() => ({ data: { permitido: false, lease_id: null } }));
+      expect(
+        (await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" }))["error"],
+      ).toContain("15 minutos");
       expect(anon.client.auth.signInWithPassword).not.toHaveBeenCalled();
     });
 
@@ -463,54 +752,84 @@ describe("usuarios.functions", () => {
       loginOk();
       const r = await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "4321" });
       expect(r).toEqual({ access_token: "at", refresh_token: "rt" });
-      expect(anon.client.auth.signInWithPassword).toHaveBeenCalledWith({ email: "1234567@empleados.finesa.local", password: passwordEmpleado("1234567", "4321") });
+      expect(anon.client.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "1234567@empleados.finesa.local",
+        password: passwordEmpleado("1234567", "4321"),
+      });
       expect(h.createClientArgs[0]!.slice(0, 2)).toEqual(["http://supabase.test", "anon-test-key"]);
-      expect(admin.find("empleados", "update")[0]!.payload).toEqual({ pin_intentos: 0 });
+      expect(admin.rpcs).toContainEqual({
+        name: "finalizar_intento_pin",
+        args: { p_empleado: EMP_ID, p_lease: "pin-lease", p_exito: true },
+      });
       expect(admin.auditorias()[0]).toMatchObject({ user_id: EMP_USER, accion: "LOGIN" });
     });
 
     it("un bloqueo vencido no impide el ingreso", async () => {
       conEmpleados([{ ...empRow, pin_bloqueo_hasta: new Date(Date.now() - 1_000).toISOString() }]);
       loginOk();
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "4321" })).toHaveProperty("access_token");
+      expect(
+        await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "4321" }),
+      ).toHaveProperty("access_token");
     });
 
-    it("incrementa el contador de intentos en cada PIN fallido", async () => {
+    it("reserva un intento antes de Auth y finaliza el intento fallido", async () => {
       conEmpleados([{ ...empRow, pin_intentos: 3 }]);
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "0000" })).toEqual({ error: "Cédula o PIN incorrectos." });
-      expect(admin.find("empleados", "update")[0]!.payload).toEqual({ pin_intentos: 4 });
+      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "0000" })).toEqual({
+        error: "Cédula o PIN incorrectos.",
+      });
+      expect(admin.rpcs).toEqual([
+        { name: "reservar_intento_pin", args: { p_empleado: EMP_ID } },
+        {
+          name: "finalizar_intento_pin",
+          args: { p_empleado: EMP_ID, p_lease: "pin-lease", p_exito: false },
+        },
+      ]);
+      expect(admin.find("empleados", "update")).toHaveLength(0);
       expect(admin.auditorias()).toHaveLength(0);
     });
 
-    it("al 5.º fallo bloquea 15 minutos y lo audita", async () => {
-      conEmpleados([{ ...empRow, pin_intentos: 4 }]);
-      const antes = Date.now();
-      await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "0000" });
-      const upd = admin.find("empleados", "update")[0]!.payload as { pin_intentos: number; pin_bloqueo_hasta: string };
-      expect(upd.pin_intentos).toBe(0);
-      const hasta = new Date(upd.pin_bloqueo_hasta).getTime();
-      expect(hasta - antes).toBeGreaterThanOrEqual(15 * 60_000 - 1_000);
-      expect(hasta - antes).toBeLessThanOrEqual(15 * 60_000 + 5_000);
-      expect(admin.auditorias()[0]).toMatchObject({ accion: "PIN_BLOQUEADO", registro_id: EMP_ID });
+    it("no autentica cuando PostgreSQL indica agotamiento de intentos", async () => {
+      conEmpleados([empRow]);
+      admin.setOnRpc(() => ({
+        data: {
+          permitido: false,
+          lease_id: null,
+          intentos: 5,
+          bloqueo_hasta: new Date(Date.now() + 900000).toISOString(),
+        },
+      }));
+      expect(
+        (await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "0000" })).error,
+      ).toContain("15 minutos");
+      expect(anon.client.auth.signInWithPassword).not.toHaveBeenCalled();
     });
 
     it("informa cuenta suspendida si Supabase Auth la tiene baneada", async () => {
       conEmpleados([empRow]);
-      anon.client.auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { message: "User is banned" } });
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({ error: "Su acceso está suspendido." });
+      anon.client.auth.signInWithPassword.mockResolvedValueOnce({
+        data: { session: null, user: null },
+        error: { message: "User is banned" },
+      });
+      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({
+        error: "Su acceso está suspendido.",
+      });
     });
 
     it("limita a 10 intentos por IP cada 5 minutos", async () => {
       setRequestHeaders({ "cf-connecting-ip": "203.0.113.77" });
       conEmpleados([]);
       for (let i = 0; i < 10; i++) {
-        expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({ error: "Cédula o PIN incorrectos." });
+        expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({
+          error: "Cédula o PIN incorrectos.",
+        });
       }
       const r = await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" });
       expect(r["error"]).toContain("Demasiados intentos desde esta dirección");
       // Otra IP no se ve afectada.
       setRequestHeaders({ "cf-connecting-ip": "203.0.113.78" });
-      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({ error: "Cédula o PIN incorrectos." });
+      expect(await call(usuarios.ingresoEmpleado, { cedula: "1234567", pin: "1234" })).toEqual({
+        error: "Cédula o PIN incorrectos.",
+      });
     });
   });
 
@@ -524,26 +843,36 @@ describe("usuarios.functions", () => {
 
     it("usa el cliente del usuario (RLS + trigger de paz y salvo)", async () => {
       const c = ctxRetiro({ data: { id: EMP_ID, user_id: null } });
-      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({ ok: true });
+      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({
+        ok: true,
+      });
       expect(c.sb.find("empleados", "update")[0]!.payload).toEqual({ activo: false });
       expect(admin.find("empleados")).toHaveLength(0);
     });
 
     it("propaga el bloqueo de paz y salvo de la base de datos", async () => {
-      const c = ctxRetiro({ error: { message: "PAZ_Y_SALVO: El empleado tiene equipos asignados." } });
-      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({ error: "PAZ_Y_SALVO: El empleado tiene equipos asignados." });
+      const c = ctxRetiro({
+        error: { message: "PAZ_Y_SALVO: El empleado tiene equipos asignados." },
+      });
+      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({
+        error: "PAZ_Y_SALVO: El empleado tiene equipos asignados.",
+      });
       expect(admin.client.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
     it("sin fila actualizada (RLS) informa falta de permiso", async () => {
       const c = ctxRetiro({ data: null });
-      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({ error: "No tiene permiso para retirar empleados." });
+      expect(await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context)).toEqual({
+        error: "No tiene permiso para retirar empleados.",
+      });
     });
 
     it("suspende el acceso al portal si el empleado tenía cuenta", async () => {
       const c = ctxRetiro({ data: { id: EMP_ID, user_id: EMP_USER } });
       await call(usuarios.retirarEmpleado, { empleadoId: EMP_ID }, c.context);
-      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(EMP_USER, { ban_duration: "876000h" });
+      expect(admin.client.auth.admin.updateUserById).toHaveBeenCalledWith(EMP_USER, {
+        ban_duration: "876000h",
+      });
       expect(admin.find("profiles", "update")[0]!.payload).toEqual({ activo: false });
       expect(admin.auditorias()[0]).toMatchObject({ accion: "SUSPENDER_ACCESO", user_id: AUX });
     });

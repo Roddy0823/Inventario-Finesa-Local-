@@ -26,7 +26,9 @@ function Recuperar() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/restablecer` });
+    await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/restablecer`,
+    });
     setLoading(false);
     setEnviado(true);
   }
@@ -37,7 +39,9 @@ function Recuperar() {
       </div>
       <div className="login-card w-full max-w-[390px] space-y-5 rounded-2xl border border-border/80 bg-card/85 p-7 backdrop-blur-xl">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">Recuperar contraseña</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">
+            Recuperar contraseña
+          </h1>
           <p className="mt-1 text-xs text-muted-foreground">
             Ingrese su correo corporativo para recibir un enlace de restablecimiento.
           </p>
@@ -55,7 +59,9 @@ function Recuperar() {
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs">Correo electrónico</Label>
+              <Label htmlFor="email" className="text-xs">
+                Correo electrónico
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

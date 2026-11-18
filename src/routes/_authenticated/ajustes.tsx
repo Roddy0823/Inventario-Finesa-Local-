@@ -8,8 +8,19 @@ import { useMe } from "@/lib/me";
 import { useTheme, type Theme } from "@/lib/theme";
 import { errMsg, fmtFecha } from "@/lib/constantes";
 import { copiarTexto, cn } from "@/lib/utils";
-import { actualizarNombre, borrarMiFirma, cambiarMiPassword, guardarMiFirma, obtenerMiFirma } from "@/lib/ajustes.functions";
-import { IDLE_CONFIG_EVENT, IDLE_STORAGE_KEY, leerMinutosInactividad, registrarActividadGlobal } from "@/lib/inactividad";
+import {
+  actualizarNombre,
+  borrarMiFirma,
+  cambiarMiPassword,
+  guardarMiFirma,
+  obtenerMiFirma,
+} from "@/lib/ajustes.functions";
+import {
+  IDLE_CONFIG_EVENT,
+  IDLE_STORAGE_KEY,
+  leerMinutosInactividad,
+  registrarActividadGlobal,
+} from "@/lib/inactividad";
 import { PageHeader } from "@/components/Estado";
 import { Certificaciones } from "@/components/Certificaciones";
 import { ConfigPortalEmpleados } from "@/components/ConfigPortalEmpleados";
@@ -43,14 +54,19 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-const search = z.object({ tab: z.enum(["perfil", "seguridad", "firma", "portal", "certificacion"]).optional() });
+const search = z.object({
+  tab: z.enum(["perfil", "seguridad", "firma", "portal", "certificacion"]).optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
   validateSearch: search,
   head: () => ({
     meta: [
       { title: "Configuración — Finesa" },
-      { name: "description", content: "Perfil, apariencia, firma digital y configuración del sistema." },
+      {
+        name: "description",
+        content: "Perfil, apariencia, firma digital y configuración del sistema.",
+      },
     ],
   }),
   component: Ajustes,
@@ -72,20 +88,27 @@ function Ajustes() {
 
   if (!me) return null;
 
-  const tabs: { id: NonNullable<typeof tab>; label: string; icon: typeof User; badge?: string }[] = [
-    { id: "perfil", label: "Perfil y apariencia", icon: User },
-    { id: "seguridad", label: "Seguridad y sesión", icon: Lock },
-    ...(me.isStaff ? [{ id: "firma" as const, label: "Firma digital", icon: PenTool }] : []),
-    ...(me.isAdmin
-      ? [
-          { id: "portal" as const, label: "Portal de empleados", icon: Users, badge: "Admin" },
-          { id: "certificacion" as const, label: "Certificación anual", icon: ShieldCheck, badge: "Admin" },
-        ]
-      : []),
-  ];
+  const tabs: { id: NonNullable<typeof tab>; label: string; icon: typeof User; badge?: string }[] =
+    [
+      { id: "perfil", label: "Perfil y apariencia", icon: User },
+      { id: "seguridad", label: "Seguridad y sesión", icon: Lock },
+      ...(me.isStaff ? [{ id: "firma" as const, label: "Firma digital", icon: PenTool }] : []),
+      ...(me.isAdmin
+        ? [
+            { id: "portal" as const, label: "Portal de empleados", icon: Users, badge: "Admin" },
+            {
+              id: "certificacion" as const,
+              label: "Certificación anual",
+              icon: ShieldCheck,
+              badge: "Admin",
+            },
+          ]
+        : []),
+    ];
 
   const actual =
-    ((tab === "certificacion" || tab === "portal") && !me.isAdmin) || (tab === "firma" && !me.isStaff)
+    ((tab === "certificacion" || tab === "portal") && !me.isAdmin) ||
+    (tab === "firma" && !me.isStaff)
       ? "perfil"
       : tab;
 
@@ -116,13 +139,17 @@ function Ajustes() {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : "text-muted-foreground")} />
+                <Icon
+                  className={cn("h-3.5 w-3.5", active ? "text-primary" : "text-muted-foreground")}
+                />
                 <span>{t.label}</span>
                 {t.badge && (
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0.2 font-mono text-[10px]",
-                      active ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground",
+                      active
+                        ? "bg-primary/15 text-primary font-semibold"
+                        : "bg-muted text-muted-foreground",
                     )}
                   >
                     {t.badge}
@@ -140,7 +167,9 @@ function Ajustes() {
           <AparienciaCard />
         </div>
       )}
-      {actual === "seguridad" && <SeguridadPanel userId={me.id} email={me.email} isStaff={me.isStaff} rol={rol} />}
+      {actual === "seguridad" && (
+        <SeguridadPanel userId={me.id} email={me.email} isStaff={me.isStaff} rol={rol} />
+      )}
       {actual === "firma" && me.isStaff && <Firma email={me.email} />}
       {actual === "portal" && me.isAdmin && <ConfigPortalEmpleados />}
       {actual === "certificacion" && me.isAdmin && <Certificaciones admin ownerId={me.id} />}
@@ -148,7 +177,10 @@ function Ajustes() {
   );
 }
 
-function validarNombreCliente(raw: string, actual: string): { valido: boolean; limpio: string; error: string | null } {
+function validarNombreCliente(
+  raw: string,
+  actual: string,
+): { valido: boolean; limpio: string; error: string | null } {
   const limpio = raw.trim().replace(/\s+/g, " ");
   if (limpio === actual.trim()) {
     return { valido: false, limpio, error: null };
@@ -163,7 +195,8 @@ function validarNombreCliente(raw: string, actual: string): { valido: boolean; l
     return {
       valido: false,
       limpio,
-      error: "Solo se permiten letras, espacios, puntos o guiones (sin números ni símbolos especiales).",
+      error:
+        "Solo se permiten letras, espacios, puntos o guiones (sin números ni símbolos especiales).",
     };
   }
   return { valido: true, limpio, error: null };
@@ -188,7 +221,10 @@ function DialogConfirmarCredenciales({
   resumen?: React.ReactNode;
   destructivo?: boolean;
   textoConfirmar?: string;
-  onConfirmar: (credenciales: { email: string; passwordActual: string }) => Promise<{ error?: string } | void>;
+  onConfirmar: (credenciales: {
+    email: string;
+    passwordActual: string;
+  }) => Promise<{ error?: string } | void>;
 }) {
   const [email, setEmail] = useState(emailCuenta);
   const [passwordActual, setPasswordActual] = useState("");
@@ -318,7 +354,8 @@ function DialogConfirmarCredenciales({
           )}
 
           <div className="rounded-lg border border-border/60 bg-muted/15 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-            Por seguridad, cualquier modificación a su perfil, firma digital o credenciales verifica su identidad en el servidor y queda registrada en la bitácora de auditoría.
+            Por seguridad, cualquier modificación a su perfil, firma digital o credenciales verifica
+            su identidad en el servidor y queda registrada en la bitácora de auditoría.
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
@@ -446,7 +483,9 @@ function Perfil({
               </button>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground">Identificador único vinculado a su cuenta.</p>
+          <p className="text-[11px] text-muted-foreground">
+            Identificador único vinculado a su cuenta.
+          </p>
         </div>
 
         {puedeEditar && (
@@ -588,7 +627,9 @@ function AparienciaCard() {
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Apariencia del espacio de trabajo</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              Apariencia del espacio de trabajo
+            </h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Seleccione el tema visual de Finesa. Actualmente visualizando en modo{" "}
@@ -620,7 +661,9 @@ function AparienciaCard() {
                 {op.preview}
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")} />
+                    <Icon
+                      className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground")}
+                    />
                     <span className="text-xs font-semibold text-foreground">{op.title}</span>
                   </div>
                   {active && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
@@ -652,7 +695,9 @@ function Firma({ email }: { email: string }) {
     if ("error" in r && r.error) {
       return { error: r.error };
     }
-    toast.success("Identidad verificada y firma guardada. Se agregará automáticamente a las actas que genere.");
+    toast.success(
+      "Identidad verificada y firma guardada. Se agregará automáticamente a las actas que genere.",
+    );
     setEditar(false);
     setFirma(null);
     qc.invalidateQueries({ queryKey: ["mi-firma"] });
@@ -688,7 +733,8 @@ function Firma({ email }: { email: string }) {
             </span>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Se estampa automáticamente en el campo «Técnico responsable» de cada acta PDF que usted emita.
+            Se estampa automáticamente en el campo «Técnico responsable» de cada acta PDF que usted
+            emita.
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
@@ -763,7 +809,9 @@ function Firma({ email }: { email: string }) {
         open={confirmAccion === "guardar"}
         onClose={() => setConfirmAccion(null)}
         emailCuenta={email}
-        titulo={url ? "Confirmar reemplazo de firma digital" : "Confirmar registro de firma digital"}
+        titulo={
+          url ? "Confirmar reemplazo de firma digital" : "Confirmar registro de firma digital"
+        }
         descripcion="Por seguridad documental, confirme sus credenciales antes de guardar su firma electrónica."
         resumen={
           firma ? (
@@ -791,7 +839,8 @@ function Firma({ email }: { email: string }) {
         destructivo
         resumen={
           <div className="text-muted-foreground">
-            Las nuevas actas que genere dejarán de incluir su firma automática hasta que vuelva a registrar una. Las actas emitidas anteriormente no se verán afectadas.
+            Las nuevas actas que genere dejarán de incluir su firma automática hasta que vuelva a
+            registrar una. Las actas emitidas anteriormente no se verán afectadas.
           </div>
         }
         textoConfirmar="Verificar y eliminar firma"
@@ -886,8 +935,14 @@ function SeguridadPanel({
       toast.error("Las contraseñas no coinciden.");
       return;
     }
-    if (p1.length < 8 || !/[a-zA-Z]/.test(p1) || !/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p1)) {
-      toast.error("La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números o símbolos.");
+    if (
+      p1.length < 8 ||
+      !/[a-zA-Z]/.test(p1) ||
+      !/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p1)
+    ) {
+      toast.error(
+        "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números o símbolos.",
+      );
       return;
     }
     setConfirmPwdOpen(true);
@@ -943,7 +998,9 @@ function SeguridadPanel({
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-success" />
-              <h2 className="text-sm font-semibold text-foreground">Estado de seguridad de la sesión</h2>
+              <h2 className="text-sm font-semibold text-foreground">
+                Estado de seguridad de la sesión
+              </h2>
               <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
                 Protección activa
               </span>
@@ -995,8 +1052,12 @@ function SeguridadPanel({
                 <span className="text-[11px] font-medium text-muted-foreground">{item.titulo}</span>
                 <CheckCircle2 className="h-3.5 w-3.5 text-success" />
               </div>
-              <div className="mt-1 font-display text-sm font-semibold text-foreground">{item.valor}</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{item.detalle}</p>
+              <div className="mt-1 font-display text-sm font-semibold text-foreground">
+                {item.valor}
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {item.detalle}
+              </p>
             </div>
           ))}
         </div>
@@ -1007,10 +1068,13 @@ function SeguridadPanel({
         <div className="border-b border-border/70 bg-muted/20 px-6 py-4">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Bloqueo automático por inactividad</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              Bloqueo automático por inactividad
+            </h2>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Cierra su sesión automáticamente si el navegador permanece sin actividad durante el tiempo elegido (con aviso previo de 60 segundos).
+            Cierra su sesión automáticamente si el navegador permanece sin actividad durante el
+            tiempo elegido (con aviso previo de 60 segundos).
           </p>
         </div>
 
@@ -1033,7 +1097,9 @@ function SeguridadPanel({
                   <span className="text-xs font-semibold text-foreground">{op.label}</span>
                   {activo && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
                 </div>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{op.desc}</p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                  {op.desc}
+                </p>
               </button>
             );
           })}
@@ -1047,10 +1113,13 @@ function SeguridadPanel({
             <div>
               <div className="flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-foreground">Actualizar contraseña de acceso</h2>
+                <h2 className="text-sm font-semibold text-foreground">
+                  Actualizar contraseña de acceso
+                </h2>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Exige mínimo 8 caracteres combinando letras y números o símbolos. El cambio queda registrado en auditoría.
+                Exige mínimo 8 caracteres combinando letras y números o símbolos. El cambio queda
+                registrado en auditoría.
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
@@ -1080,7 +1149,11 @@ function SeguridadPanel({
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                   title={mostrarPwd ? "Ocultar" : "Mostrar"}
                 >
-                  {mostrarPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {mostrarPwd ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -1101,8 +1174,12 @@ function SeguridadPanel({
 
             <div className="space-y-2.5 rounded-xl border border-border/70 bg-muted/15 p-3.5 sm:col-span-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-muted-foreground">Fortaleza de la contraseña</span>
-                <span className={cn("font-semibold", evalPwd.nivel.cls)}>{evalPwd.nivel.texto}</span>
+                <span className="font-medium text-muted-foreground">
+                  Fortaleza de la contraseña
+                </span>
+                <span className={cn("font-semibold", evalPwd.nivel.cls)}>
+                  {evalPwd.nivel.texto}
+                </span>
               </div>
               <div className="grid grid-cols-4 gap-1.5">
                 {[1, 2, 3, 4].map((idx) => (
@@ -1119,9 +1196,14 @@ function SeguridadPanel({
                 {evalPwd.checks.map((c) => (
                   <div key={c.label} className="flex items-center gap-1.5 text-[11px]">
                     <CheckCircle2
-                      className={cn("h-3.5 w-3.5 shrink-0", c.ok ? "text-success" : "text-muted-foreground/40")}
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0",
+                        c.ok ? "text-success" : "text-muted-foreground/40",
+                      )}
                     />
-                    <span className={c.ok ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
+                    <span className={c.ok ? "text-foreground" : "text-muted-foreground"}>
+                      {c.label}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -1141,11 +1223,7 @@ function SeguridadPanel({
                   Limpiar
                 </Button>
               )}
-              <Button
-                type="submit"
-                size="sm"
-                disabled={p1.length < 8 || p1 !== p2}
-              >
+              <Button type="submit" size="sm" disabled={p1.length < 8 || p1 !== p2}>
                 <Lock className="mr-1.5 h-3.5 w-3.5" />
                 Actualizar contraseña
               </Button>
@@ -1161,7 +1239,9 @@ function SeguridadPanel({
             resumen={
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Fortaleza de la nueva clave:</span>
-                <span className={cn("font-semibold", evalPwd.nivel.cls)}>{evalPwd.nivel.texto}</span>
+                <span className={cn("font-semibold", evalPwd.nivel.cls)}>
+                  {evalPwd.nivel.texto}
+                </span>
               </div>
             }
             textoConfirmar="Verificar y cambiar contraseña"
@@ -1176,23 +1256,33 @@ function SeguridadPanel({
           <div className="border-b border-border/70 bg-muted/20 px-6 py-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold text-foreground">Actividad reciente de seguridad en su cuenta</h2>
+              <h2 className="text-sm font-semibold text-foreground">
+                Actividad reciente de seguridad en su cuenta
+              </h2>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Últimos eventos de autenticación, firmas y credenciales registrados en la bitácora inmutable.
+              Últimos eventos de autenticación, firmas y credenciales registrados en la bitácora
+              inmutable.
             </p>
           </div>
 
           <div className="divide-y divide-border/60">
             {eventosSeguridad.isLoading ? (
-              <p className="p-6 text-xs text-muted-foreground">Consultando bitácora de seguridad…</p>
+              <p className="p-6 text-xs text-muted-foreground">
+                Consultando bitácora de seguridad…
+              </p>
             ) : !eventosSeguridad.data?.length ? (
-              <p className="p-6 text-xs text-muted-foreground">Sin eventos de seguridad recientes registrados.</p>
+              <p className="p-6 text-xs text-muted-foreground">
+                Sin eventos de seguridad recientes registrados.
+              </p>
             ) : (
               eventosSeguridad.data.map((ev) => {
                 const esAlerta = ev.accion === "REAUTH_FALLIDA" || ev.accion === "PIN_BLOQUEADO";
                 return (
-                  <div key={ev.id} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 text-xs">
+                  <div
+                    key={ev.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 text-xs"
+                  >
                     <div className="flex items-center gap-2.5">
                       <span
                         className={cn(

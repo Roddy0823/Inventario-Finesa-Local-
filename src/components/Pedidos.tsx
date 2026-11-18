@@ -1,3 +1,4 @@
+import { hoyColombia } from "@/lib/fechas";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import {
@@ -33,7 +40,14 @@ import {
 
 const sel =
   "h-9 w-full rounded-lg border border-input bg-background/80 px-3 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
-const INVALIDAR = ["pedidos", "pedido", "equipos", "proveedores", "proveedor", "proveedores_articulo"];
+const INVALIDAR = [
+  "pedidos",
+  "pedido",
+  "equipos",
+  "proveedores",
+  "proveedor",
+  "proveedores_articulo",
+];
 export const refrescarPedidos = (qc: ReturnType<typeof useQueryClient>) =>
   INVALIDAR.forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
 
@@ -70,7 +84,9 @@ export function EstadoPedido({ p }: { p: { estado: string; fecha_esperada: strin
   };
   const st = cfg[p.estado] ?? cfg.borrador!;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${st.cls}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${st.cls}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
       {ESTADOS_PEDIDO[p.estado] ?? p.estado}
     </span>
@@ -95,7 +111,8 @@ export function NuevoPedido({
   const provs = useQuery({
     queryKey: ["proveedores_lista_full"],
     queryFn: async () =>
-      ((await supabase.from("proveedores").select("*").eq("activo", true).order("nombre")).data ?? []) as Prov[],
+      ((await supabase.from("proveedores").select("*").eq("activo", true).order("nombre")).data ??
+        []) as Prov[],
   });
   const [provId, setProvId] = useState(inicial?.proveedor_id ?? "");
   const prov = provs.data?.find((p) => p.id === provId);
@@ -103,7 +120,11 @@ export function NuevoPedido({
   const [notas, setNotas] = useState("");
   const [lineas, setLineas] = useState<LineaForm[]>(
     inicial?.lineas?.length
-      ? inicial.lineas.map((l) => ({ tipo_id: l.tipo_id, cantidad: String(l.cantidad), precio: "" }))
+      ? inicial.lineas.map((l) => ({
+          tipo_id: l.tipo_id,
+          cantidad: String(l.cantidad),
+          precio: "",
+        }))
       : [{ tipo_id: "", cantidad: "1", precio: "" }],
   );
   const [guardando, setGuardando] = useState(false);
@@ -136,7 +157,10 @@ export function NuevoPedido({
 
   const fechaEsp = fecha || (prov?.dias_entrega != null ? sumarDias(prov.dias_entrega) : "");
   const total = lineas.reduce((s, l) => s + (Number(l.cantidad) || 0) * (Number(l.precio) || 0), 0);
-  const totalUnidades = lineas.reduce((s, l) => s + (l.tipo_id ? Math.max(0, Number(l.cantidad) || 0) : 0), 0);
+  const totalUnidades = lineas.reduce(
+    (s, l) => s + (l.tipo_id ? Math.max(0, Number(l.cantidad) || 0) : 0),
+    0,
+  );
 
   const upd = (i: number, v: Partial<LineaForm>) =>
     setLineas(
@@ -154,7 +178,8 @@ export function NuevoPedido({
     );
 
   async function guardar(estado: "borrador" | "pedido") {
-    if (!me?.can("reabastecimiento_gestionar")) return toast.error("No tiene permiso para crear pedidos de compra.");
+    if (!me?.can("reabastecimiento_gestionar"))
+      return toast.error("No tiene permiso para crear pedidos de compra.");
     if (!provId) return toast.error("Seleccione el proveedor");
     const validas = lineas.filter((l) => l.tipo_id);
     if (!validas.length) return toast.error("Agregue al menos un artículo");
@@ -162,37 +187,35 @@ export function NuevoPedido({
       return toast.error("Cantidades inválidas");
     if (new Set(validas.map((l) => l.tipo_id)).size !== validas.length)
       return toast.error("Hay artículos repetidos");
+    if (
+      validas.some((l) => l.precio && (!Number.isFinite(Number(l.precio)) || Number(l.precio) < 0))
+    )
+      return toast.error("Precios inválidos");
+    if (guardando) return;
     setGuardando(true);
-    const { data, error } = await supabase
-      .from("pedidos_compra")
-      .insert({
-        proveedor_id: provId,
-        estado,
-        fecha_esperada: fechaEsp || null,
-        notas: notas.trim() || null,
-        fecha_pedido: estado === "pedido" ? new Date().toISOString().slice(0, 10) : null,
-        creado_nombre: me?.nombre ?? null,
-      })
-      .select("id")
-      .single();
-    if (error || !data) {
+    try {
+      const { data, error } = await supabase.rpc("crear_pedido", {
+        p_proveedor: provId,
+        p_estado: estado,
+        p_fecha_esperada: fechaEsp || null,
+        p_notas: notas.trim() || null,
+        p_lineas: validas.map((l) => ({
+          tipo_id: l.tipo_id,
+          cantidad: Number(l.cantidad),
+          precio_estimado: l.precio ? Number(l.precio) : null,
+        })),
+      });
+      if (error) throw error;
+      if (!data) throw new Error("No se recibió el identificador del pedido");
+      toast.success(estado === "pedido" ? "Pedido registrado" : "Borrador guardado");
+      refrescarPedidos(qc);
+      onCreado?.(data);
+      onClose();
+    } catch (error) {
+      toast.error(errMsg(error));
+    } finally {
       setGuardando(false);
-      return toast.error(errMsg(error));
     }
-    const { error: e2 } = await supabase.from("pedido_lineas").insert(
-      validas.map((l) => ({
-        pedido_id: data.id,
-        tipo_id: l.tipo_id,
-        cantidad: Number(l.cantidad),
-        precio_estimado: l.precio ? Number(l.precio) : null,
-      })),
-    );
-    setGuardando(false);
-    if (e2) return toast.error(errMsg(e2));
-    toast.success(estado === "pedido" ? "Pedido registrado" : "Borrador guardado");
-    refrescarPedidos(qc);
-    onCreado?.(data.id);
-    onClose();
   }
 
   return (
@@ -204,9 +227,12 @@ export function NuevoPedido({
               <ShoppingCart className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold tracking-tight">Nuevo pedido de compra</DialogTitle>
+              <DialogTitle className="text-base font-semibold tracking-tight">
+                Nuevo pedido de compra
+              </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Solicita reabastecimiento a un proveedor aliado o guarda un borrador para cotización.
+                Solicita reabastecimiento a un proveedor aliado o guarda un borrador para
+                cotización.
               </p>
             </div>
           </div>
@@ -340,7 +366,9 @@ export function NuevoPedido({
                         onChange={(e) => upd(i, { precio: e.target.value })}
                       />
                       {sub > 0 && (
-                        <div className="text-right font-mono text-[10px] text-muted-foreground">Sub: {cop(sub)}</div>
+                        <div className="text-right font-mono text-[10px] text-muted-foreground">
+                          Sub: {cop(sub)}
+                        </div>
                       )}
                     </div>
 
@@ -365,7 +393,9 @@ export function NuevoPedido({
               </span>
               <span className="text-muted-foreground">
                 Total estimado:{" "}
-                <b className="font-mono text-sm font-semibold text-foreground">{total > 0 ? cop(total) : "$0"}</b>
+                <b className="font-mono text-sm font-semibold text-foreground">
+                  {total > 0 ? cop(total) : "$0"}
+                </b>
               </span>
             </div>
           </div>
@@ -373,6 +403,7 @@ export function NuevoPedido({
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Notas / Referencia de cotización</Label>
             <Textarea
+              aria-label="Notas / Referencia de cotización"
               rows={2}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -399,7 +430,13 @@ export function NuevoPedido({
   );
 }
 
-type Linea = { id: string; tipo_id: string; cantidad: number; recibida: number; precio_estimado: number | null };
+type Linea = {
+  id: string;
+  tipo_id: string;
+  cantidad: number;
+  recibida: number;
+  precio_estimado: number | null;
+};
 
 /** Ficha del pedido con acciones: marcar realizado, recibir por línea, cancelar. */
 export function DetallePedido({ id, onClose }: { id: string | null; onClose: () => void }) {
@@ -430,7 +467,7 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
     if (!puedeReabastecer) return toast.error("No tiene permiso para gestionar pedidos.");
     const { error } = await supabase
       .from("pedidos_compra")
-      .update({ estado: "pedido", fecha_pedido: new Date().toISOString().slice(0, 10) })
+      .update({ estado: "pedido", fecha_pedido: hoyColombia() })
       .eq("id", id!);
     if (error) toast.error(errMsg(error));
     else {
@@ -443,7 +480,11 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
     if (!motivo.trim()) return toast.error("Indique el motivo");
     const { error } = await supabase
       .from("pedidos_compra")
-      .update({ estado: "cancelado", cancelado_motivo: motivo.trim(), cerrado_at: new Date().toISOString() })
+      .update({
+        estado: "cancelado",
+        cancelado_motivo: motivo.trim(),
+        cerrado_at: new Date().toISOString(),
+      })
       .eq("id", id!);
     if (error) return toast.error(errMsg(error));
     toast.success("Pedido cancelado");
@@ -460,7 +501,10 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
     onClose();
   }
 
-  const total = (p?.lineas ?? []).reduce((s, l) => s + l.cantidad * (Number(l.precio_estimado) || 0), 0);
+  const total = (p?.lineas ?? []).reduce(
+    (s, l) => s + l.cantidad * (Number(l.precio_estimado) || 0),
+    0,
+  );
   const totalPedidas = (p?.lineas ?? []).reduce((s, l) => s + l.cantidad, 0);
   const totalRecibidas = (p?.lineas ?? []).reduce((s, l) => s + l.recibida, 0);
   const pctGlobal = totalPedidas > 0 ? Math.round((totalRecibidas / totalPedidas) * 100) : 0;
@@ -472,18 +516,23 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
           <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
             <div>
               <div className="flex items-center gap-2">
-                <SheetTitle className="font-mono text-lg font-semibold">Pedido #{p?.numero ?? ""}</SheetTitle>
+                <SheetTitle className="font-mono text-lg font-semibold">
+                  Pedido #{p?.numero ?? ""}
+                </SheetTitle>
                 {p && <EstadoPedido p={p} />}
               </div>
               {p?.proveedor && (
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Proveedor: <span className="font-medium text-foreground">{p.proveedor.nombre}</span>
+                  Proveedor:{" "}
+                  <span className="font-medium text-foreground">{p.proveedor.nombre}</span>
                 </p>
               )}
             </div>
             {total > 0 && (
               <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-1.5 text-right">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total estimado</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Total estimado
+                </div>
                 <div className="font-mono text-sm font-semibold">{cop(total)}</div>
               </div>
             )}
@@ -497,7 +546,9 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
               <div className="rounded-xl border border-border/70 bg-muted/15 p-3">
                 <div className="text-[11px] text-muted-foreground">Creado</div>
                 <div className="mt-0.5 text-xs font-medium">{fmtFecha(p.created_at)}</div>
-                <div className="truncate text-[10px] text-muted-foreground">por {p.creado_nombre ?? "—"}</div>
+                <div className="truncate text-[10px] text-muted-foreground">
+                  por {p.creado_nombre ?? "—"}
+                </div>
               </div>
               <div className="rounded-xl border border-border/70 bg-muted/15 p-3">
                 <div className="text-[11px] text-muted-foreground">Entrega esperada</div>
@@ -565,7 +616,9 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
                   Líneas del pedido ({p.lineas.length})
                 </h3>
                 {abierto && puedeReabastecer && (
-                  <span className="text-[11px] text-muted-foreground">Haz clic en Recibir al llegar la mercancía</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Haz clic en Recibir al llegar la mercancía
+                  </span>
                 )}
               </div>
               <ul className="space-y-2">
@@ -585,7 +638,9 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground">{cat.nombre(l.tipo_id)}</span>
+                            <span className="font-medium text-foreground">
+                              {cat.nombre(l.tipo_id)}
+                            </span>
                             {completo ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success">
                                 <CheckCircle2 className="h-3 w-3" />
@@ -604,7 +659,8 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
                             </span>
                             {l.precio_estimado != null && (
                               <span className="font-mono">
-                                · {cop(l.precio_estimado)} c/u (Sub: {cop(l.cantidad * l.precio_estimado)})
+                                · {cop(l.precio_estimado)} c/u (Sub:{" "}
+                                {cop(l.cantidad * l.precio_estimado)})
                               </span>
                             )}
                           </div>
@@ -659,7 +715,11 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
         )}
 
         {recibir && p && (
-          <RecibirLinea linea={recibir} nombre={cat.nombre(recibir.tipo_id)} onClose={() => setRecibir(null)} />
+          <RecibirLinea
+            linea={recibir}
+            nombre={cat.nombre(recibir.tipo_id)}
+            onClose={() => setRecibir(null)}
+          />
         )}
 
         <Dialog open={cancelar} onOpenChange={setCancelar}>
@@ -668,7 +728,8 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
               <DialogTitle>Cancelar pedido #{p?.numero}</DialogTitle>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">
-              Indica el motivo por el cual se cancela esta orden de compra. Quedará registrado en el historial.
+              Indica el motivo por el cual se cancela esta orden de compra. Quedará registrado en el
+              historial.
             </p>
             <Textarea
               placeholder="Motivo de la cancelación *"
@@ -690,7 +751,15 @@ export function DetallePedido({ id, onClose }: { id: string | null; onClose: () 
   );
 }
 
-function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string; onClose: () => void }) {
+function RecibirLinea({
+  linea,
+  nombre,
+  onClose,
+}: {
+  linea: Linea;
+  nombre: string;
+  onClose: () => void;
+}) {
   const cat = useCatalogos();
   const qc = useQueryClient();
   const pend = linea.cantidad - linea.recibida;
@@ -706,7 +775,14 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
   });
   const [guardando, setGuardando] = useState(false);
   const [extra, setExtra] = useState<Record<string, { af: string; nombre: string }>>({});
-  const seriales = [...new Set(f.seriales.split(/[\n,;]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  const seriales = [
+    ...new Set(
+      f.seriales
+        .split(/[\n,;]+/)
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ];
   const sinSerial = Math.max(0, Number(f.sinSerial) || 0);
   const total = seriales.length + sinSerial;
 
@@ -714,7 +790,8 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
     if (!total) return toast.error("Escriba seriales o una cantidad sin serial");
     if (total > pend) return toast.error(`Solo faltan ${pend} unidad(es)`);
     const valor = f.valor ? Number(f.valor) : null;
-    if (valor !== null && (!Number.isFinite(valor) || valor < 0)) return toast.error("Valor inválido");
+    if (valor !== null && (!Number.isFinite(valor) || valor < 0))
+      return toast.error("Valor inválido");
     setGuardando(true);
     const { data, error } = await supabase.rpc("recibir_pedido_linea", {
       p_linea: linea.id,
@@ -732,7 +809,9 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
     setGuardando(false);
     if (error)
       return toast.error(
-        error.code === "23505" ? "Alguno de los seriales ya existe en el inventario." : errMsg(error),
+        error.code === "23505"
+          ? "Alguno de los seriales ya existe en el inventario."
+          : errMsg(error),
       );
     toast.success(`${data} equipo(s) ingresados como disponibles`);
     refrescarPedidos(qc);
@@ -755,9 +834,12 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
                 <PackageCheck className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle className="text-base font-semibold tracking-tight">Recibir {nombre}</DialogTitle>
+                <DialogTitle className="text-base font-semibold tracking-tight">
+                  Recibir {nombre}
+                </DialogTitle>
                 <p className="text-xs text-muted-foreground">
-                  Pendientes por recibir en esta línea: <b className="font-mono text-foreground">{pend}</b> unidad(es)
+                  Pendientes por recibir en esta línea:{" "}
+                  <b className="font-mono text-foreground">{pend}</b> unidad(es)
                 </p>
               </div>
             </div>
@@ -779,25 +861,40 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
           <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/15 p-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Marca</Label>
-              <select className={sel} value={f.marca} onChange={(e) => setF({ ...f, marca: e.target.value })}>
+              <select
+                aria-label="Marca"
+                className={sel}
+                value={f.marca}
+                onChange={(e) => setF({ ...f, marca: e.target.value })}
+              >
                 <option value="">—</option>
                 {opc("marca")}
               </select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Sede de ingreso</Label>
-              <select className={sel} value={f.sede} onChange={(e) => setF({ ...f, sede: e.target.value })}>
+              <select
+                aria-label="Sede de ingreso"
+                className={sel}
+                value={f.sede}
+                onChange={(e) => setF({ ...f, sede: e.target.value })}
+              >
                 <option value="">—</option>
                 {opc("sede")}
               </select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Modelo</Label>
-              <Input value={f.modelo} onChange={(e) => setF({ ...f, modelo: e.target.value })} />
+              <Input
+                aria-label="Modelo"
+                value={f.modelo}
+                onChange={(e) => setF({ ...f, modelo: e.target.value })}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Valor unitario real (COP)</Label>
               <Input
+                aria-label="Valor unitario real (COP)"
                 type="number"
                 min={0}
                 className="font-mono"
@@ -807,11 +904,20 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">N.º de factura</Label>
-              <Input value={f.factura} onChange={(e) => setF({ ...f, factura: e.target.value })} />
+              <Input
+                aria-label="N.º de factura"
+                value={f.factura}
+                onChange={(e) => setF({ ...f, factura: e.target.value })}
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Garantía hasta</Label>
-              <Input type="date" value={f.garantia} onChange={(e) => setF({ ...f, garantia: e.target.value })} />
+              <Input
+                aria-label="Garantía hasta"
+                type="date"
+                value={f.garantia}
+                onChange={(e) => setF({ ...f, garantia: e.target.value })}
+              />
             </div>
           </div>
 
@@ -851,7 +957,10 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
                         placeholder="AF-000"
                         value={extra[x]?.af ?? ""}
                         onChange={(e) =>
-                          setExtra({ ...extra, [x]: { nombre: extra[x]?.nombre ?? "", af: e.target.value } })
+                          setExtra({
+                            ...extra,
+                            [x]: { nombre: extra[x]?.nombre ?? "", af: e.target.value },
+                          })
                         }
                       />
                       <Input
@@ -859,7 +968,10 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
                         placeholder="PC-FIN-01"
                         value={extra[x]?.nombre ?? ""}
                         onChange={(e) =>
-                          setExtra({ ...extra, [x]: { af: extra[x]?.af ?? "", nombre: e.target.value } })
+                          setExtra({
+                            ...extra,
+                            [x]: { af: extra[x]?.af ?? "", nombre: e.target.value },
+                          })
                         }
                       />
                     </div>
@@ -872,6 +984,7 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
               <div className="flex items-center gap-2">
                 <Label className="text-xs font-medium">Cantidad sin serial (accesorios)</Label>
                 <Input
+                  aria-label="Cantidad sin serial (accesorios)"
                   type="number"
                   min={0}
                   className="h-8 w-24 font-mono"
@@ -882,7 +995,9 @@ function RecibirLinea({ linea, nombre, onClose }: { linea: Linea; nombre: string
               <p className="text-xs">
                 Se ingresarán <b className="font-mono">{total}</b> equipo(s) como Disponibles
                 {total > pend && (
-                  <span className="ml-1 font-medium text-destructive">— supera lo pendiente ({pend})</span>
+                  <span className="ml-1 font-medium text-destructive">
+                    — supera lo pendiente ({pend})
+                  </span>
                 )}
               </p>
             </div>
@@ -911,7 +1026,9 @@ export function PedidosProveedor({ proveedorId }: { proveedorId: string }) {
       (
         await supabase
           .from("pedidos_compra")
-          .select("id, numero, estado, fecha_esperada, cerrado_at, created_at, lineas:pedido_lineas(cantidad, precio_estimado)")
+          .select(
+            "id, numero, estado, fecha_esperada, cerrado_at, created_at, lineas:pedido_lineas(cantidad, precio_estimado)",
+          )
           .eq("proveedor_id", proveedorId)
           .order("created_at", { ascending: false })
           .limit(50)
@@ -980,7 +1097,9 @@ export function PedidosProveedor({ proveedorId }: { proveedorId: string }) {
                   )}
                 </div>
                 <div className="flex items-center gap-2.5">
-                  {monto > 0 && <span className="font-mono text-xs text-muted-foreground">{cop(monto)}</span>}
+                  {monto > 0 && (
+                    <span className="font-mono text-xs text-muted-foreground">{cop(monto)}</span>
+                  )}
                   <EstadoPedido p={p} />
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                 </div>

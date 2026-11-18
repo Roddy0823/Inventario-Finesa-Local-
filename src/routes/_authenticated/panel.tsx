@@ -22,20 +22,46 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/panel")({
-  head: () => ({ meta: [{ title: "Panel — Finesa" }, { name: "description", content: "Resumen del inventario y actas." }] }),
+  head: () => ({
+    meta: [
+      { title: "Panel — Finesa" },
+      { name: "description", content: "Resumen del inventario y actas." },
+    ],
+  }),
   component: Panel,
 });
 
-const STAT_META: Record<
-  string,
-  { icon: typeof Layers; accent: string; bar: string }
-> = {
-  total: { icon: Layers, accent: "text-foreground bg-muted/80 border-border", bar: "bg-foreground" },
-  disponible: { icon: CheckCircle2, accent: "text-success bg-success/12 border-success/25", bar: "bg-success" },
-  asignado: { icon: UserCheck, accent: "text-primary bg-primary/12 border-primary/25", bar: "bg-primary" },
-  en_alistamiento: { icon: Sparkles, accent: "text-accent-foreground bg-accent border-border", bar: "bg-muted-foreground" },
-  en_reparacion: { icon: Wrench, accent: "text-warning-foreground bg-warning/15 border-warning/30", bar: "bg-warning" },
-  de_baja: { icon: Archive, accent: "text-muted-foreground bg-muted border-border", bar: "bg-muted-foreground/40" },
+const STAT_META: Record<string, { icon: typeof Layers; accent: string; bar: string }> = {
+  total: {
+    icon: Layers,
+    accent: "text-foreground bg-muted/80 border-border",
+    bar: "bg-foreground",
+  },
+  disponible: {
+    icon: CheckCircle2,
+    accent: "text-success bg-success/12 border-success/25",
+    bar: "bg-success",
+  },
+  asignado: {
+    icon: UserCheck,
+    accent: "text-primary bg-primary/12 border-primary/25",
+    bar: "bg-primary",
+  },
+  en_alistamiento: {
+    icon: Sparkles,
+    accent: "text-accent-foreground bg-accent border-border",
+    bar: "bg-muted-foreground",
+  },
+  en_reparacion: {
+    icon: Wrench,
+    accent: "text-warning-foreground bg-warning/15 border-warning/30",
+    bar: "bg-warning",
+  },
+  de_baja: {
+    icon: Archive,
+    accent: "text-muted-foreground bg-muted border-border",
+    bar: "bg-muted-foreground/40",
+  },
 };
 
 function Panel() {
@@ -48,7 +74,10 @@ function Panel() {
     queryFn: async () => {
       const [eq, pend, ult] = await Promise.all([
         supabase.rpc("panel_conteos"),
-        supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+        supabase
+          .from("actas")
+          .select("id", { count: "exact", head: true })
+          .eq("estado", "pendiente"),
         supabase
           .from("actas")
           .select("id, numero, tipo, estado, created_at, empleado:empleados(nombre)")
@@ -89,12 +118,7 @@ function Panel() {
 
       {/* KPI Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <Stat
-          id="total"
-          label="Equipos totales"
-          value={s?.total}
-          search={{ tab: "activos" }}
-        />
+        <Stat id="total" label="Equipos totales" value={s?.total} search={{ tab: "activos" }} />
         {Object.entries(ESTADO_EQUIPO).map(([k, v]) => (
           <Stat
             key={k}
@@ -119,7 +143,9 @@ function Panel() {
       {total > 0 && (
         <div className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
           <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="font-medium text-muted-foreground">Distribución operativa del parque tecnológico</span>
+            <span className="font-medium text-muted-foreground">
+              Distribución operativa del parque tecnológico
+            </span>
             <span className="font-mono text-muted-foreground">{total} unidades registradas</span>
           </div>
           <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -133,7 +159,10 @@ function Panel() {
                   key={k}
                   style={{ width }}
                   title={`${v.label}: ${count} (${Math.round((count / total) * 100)}%)`}
-                  className={cn("h-full transition-all duration-500 first:rounded-l-full last:rounded-r-full", meta.bar)}
+                  className={cn(
+                    "h-full transition-all duration-500 first:rounded-l-full last:rounded-r-full",
+                    meta.bar,
+                  )}
                 />
               );
             })}
@@ -178,7 +207,9 @@ function Panel() {
           <div className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Actividad reciente de actas</h2>
-              <p className="text-xs text-muted-foreground">Últimos movimientos de entrega, devolución y cambio</p>
+              <p className="text-xs text-muted-foreground">
+                Últimos movimientos de entrega, devolución y cambio
+              </p>
             </div>
             {me?.can("repositorio_ver") && (
               <Link
@@ -206,7 +237,9 @@ function Panel() {
                       <span className="font-medium text-foreground">
                         {(a.empleado as { nombre: string } | null)?.nombre ?? "Empleado"}
                       </span>
-                      <span className="ml-2 text-xs text-muted-foreground">· {TIPO_ACTA[a.tipo]}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        · {TIPO_ACTA[a.tipo]}
+                      </span>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
@@ -259,7 +292,12 @@ function Stat({
         <span className="truncate text-xs font-medium text-muted-foreground group-hover:text-foreground">
           {label}
         </span>
-        <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md border", meta.accent)}>
+        <div
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border",
+            meta.accent,
+          )}
+        >
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>

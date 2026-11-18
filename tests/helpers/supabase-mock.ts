@@ -27,7 +27,8 @@ export function crearSupabaseMock(opts: { onQuery?: Responder; onRpc?: RpcRespon
   const state = { onQuery: opts.onQuery, onRpc: opts.onRpc };
 
   const resolver = (q: Consulta) => {
-    const r = state.onQuery?.(q) ?? {};
+    const r =
+      state.onQuery?.(q) ?? (q.single && q.op !== "select" ? { data: { id: "updated-row" } } : {});
     return { data: r.data ?? null, error: r.error ?? null };
   };
 
@@ -96,8 +97,26 @@ export function crearSupabaseMock(opts: { onQuery?: Responder; onRpc?: RpcRespon
     return b;
   }
 
-  const storageUpload = vi.fn(async (_path: string, _body: unknown, _o?: unknown) => ({ data: { path: _path }, error: null as null | { message: string } }));
-  const storageDownload = vi.fn(async (_path: string) => ({ data: null as Blob | null, error: null }));
+  const storageUpload = vi.fn(async (_path: string, _body: unknown, _o?: unknown) => ({
+    data: { path: _path },
+    error: null as null | { message: string },
+  }));
+  const storageDownload = vi.fn(async (_path: string) => ({
+    data: null as Blob | null,
+    error: null,
+  }));
+  const storageRemove = vi.fn(async (_paths: string[]) => ({
+    data: [],
+    error: null as null | { message: string },
+  }));
+  const storageCopy = vi.fn(async (_source: string, _destination: string) => ({
+    data: { path: _destination },
+    error: null as null | { message: string },
+  }));
+  const storageSignedUrl = vi.fn(async (_path: string, _expires: number) => ({
+    data: { signedUrl: "https://storage.test/signed" },
+    error: null as null | { message: string },
+  }));
   const storageBuckets: string[] = [];
 
   const client = {
@@ -109,20 +128,42 @@ export function crearSupabaseMock(opts: { onQuery?: Responder; onRpc?: RpcRespon
     }),
     auth: {
       signInWithPassword: vi.fn(async (_c: { email: string; password: string }) => ({
-        data: { session: null as null | { access_token: string; refresh_token: string } },
+        data: {
+          session: null as null | { access_token: string; refresh_token: string },
+          user: null as { id: string } | null | undefined,
+        },
         error: { message: "Invalid login credentials" } as null | { message: string },
       })),
+      signOut: vi.fn(async (_options?: unknown) => ({ error: null as null | { message: string } })),
       admin: {
-        createUser: vi.fn(async (_a: unknown) => ({ data: { user: { id: "11111111-1111-4111-8111-111111111111" } as { id: string } | null }, error: null as null | { message: string } })),
-        updateUserById: vi.fn(async (_id: string, _a: unknown) => ({ data: { user: { id: _id } }, error: null as null | { message: string } })),
-        getUserById: vi.fn(async (_id: string) => ({ data: { user: { id: _id, app_metadata: {} as Record<string, unknown> } }, error: null })),
-        deleteUser: vi.fn(async (_id: string) => ({ data: {}, error: null as null | { message: string } })),
+        createUser: vi.fn(async (_a: unknown) => ({
+          data: { user: { id: "11111111-1111-4111-8111-111111111111" } as { id: string } | null },
+          error: null as null | { message: string },
+        })),
+        updateUserById: vi.fn(async (_id: string, _a: unknown) => ({
+          data: { user: { id: _id } },
+          error: null as null | { message: string },
+        })),
+        getUserById: vi.fn(async (_id: string) => ({
+          data: { user: { id: _id, app_metadata: {} as Record<string, unknown> } },
+          error: null,
+        })),
+        deleteUser: vi.fn(async (_id: string) => ({
+          data: {},
+          error: null as null | { message: string },
+        })),
       },
     },
     storage: {
       from: vi.fn((bucket: string) => {
         storageBuckets.push(bucket);
-        return { upload: storageUpload, download: storageDownload };
+        return {
+          upload: storageUpload,
+          download: storageDownload,
+          remove: storageRemove,
+          copy: storageCopy,
+          createSignedUrl: storageSignedUrl,
+        };
       }),
     },
   };
@@ -133,6 +174,9 @@ export function crearSupabaseMock(opts: { onQuery?: Responder; onRpc?: RpcRespon
     rpcs,
     storageUpload,
     storageDownload,
+    storageRemove,
+    storageCopy,
+    storageSignedUrl,
     storageBuckets,
     setOnQuery(fn: Responder) {
       state.onQuery = fn;
@@ -147,7 +191,16 @@ export function crearSupabaseMock(opts: { onQuery?: Responder; onRpc?: RpcRespon
     auditorias() {
       return queries
         .filter((q) => q.table === "auditoria" && q.op === "insert")
-        .map((q) => q.payload as { user_id: string | null; tabla: string; accion: string; registro_id: string | null; detalle: string });
+        .map(
+          (q) =>
+            q.payload as {
+              user_id: string | null;
+              tabla: string;
+              accion: string;
+              registro_id: string | null;
+              detalle: string;
+            },
+        );
     },
   };
 }

@@ -1,6 +1,16 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { emailEmpleado, generarPin, normalizarCedula, passwordEmpleado } from "@/lib/acceso-empleado.server";
+import {
+  emailEmpleado,
+  generarPin,
+  normalizarCedula,
+  passwordEmpleado,
+} from "@/lib/acceso-empleado.server";
+
+vi.mock("node:crypto", async (original) => {
+  const crypto = await original<typeof import("node:crypto")>();
+  return { ...crypto, randomInt: vi.fn(crypto.randomInt) };
+});
 
 describe("acceso-empleado.server", () => {
   const secretoOriginal = process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -34,7 +44,9 @@ describe("acceso-empleado.server", () => {
 
   describe("passwordEmpleado (HMAC del PIN)", () => {
     it("coincide con HMAC-SHA256(secreto, 'cedula:pin') en base64url", () => {
-      const esperado = createHmac("sha256", "service-role-secret-de-pruebas").update("1234567:0420").digest("base64url");
+      const esperado = createHmac("sha256", "service-role-secret-de-pruebas")
+        .update("1234567:0420")
+        .digest("base64url");
       expect(passwordEmpleado("1234567", "0420")).toBe(esperado);
     });
 
@@ -67,25 +79,18 @@ describe("acceso-empleado.server", () => {
     });
 
     it("rellena con ceros a la izquierda", () => {
-      vi.spyOn(crypto, "getRandomValues").mockImplementation((arr) => {
-        (arr as unknown as Uint32Array)[0] = 7;
-        return arr;
-      });
+      vi.mocked(randomInt).mockReturnValueOnce(7 as never);
       expect(generarPin()).toBe("0007");
     });
 
-    it("reduce el valor aleatorio al rango 0000-9999", () => {
-      vi.spyOn(crypto, "getRandomValues").mockImplementation((arr) => {
-        (arr as unknown as Uint32Array)[0] = 4_294_967_295;
-        return arr;
-      });
-      expect(generarPin()).toBe("7295");
+    it("conserva el extremo superior de cuatro dígitos", () => {
+      vi.mocked(randomInt).mockReturnValueOnce(9999 as never);
+      expect(generarPin()).toBe("9999");
     });
 
     it("usa el generador criptográfico del runtime", () => {
-      const spy = vi.spyOn(crypto, "getRandomValues");
       generarPin();
-      expect(spy).toHaveBeenCalledOnce();
+      expect(randomInt).toHaveBeenLastCalledWith(0, 10000);
     });
   });
 });

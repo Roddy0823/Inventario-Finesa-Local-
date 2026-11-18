@@ -1,0 +1,1434 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  /><title>Análisis técnico · Finesa Inventario · 11 noviembre 2026</title
+  ><style>
+    :root {
+      font-family:
+        Segoe UI,
+        Arial,
+        sans-serif;
+      color: #172537;
+      background: #f3f6fa;
+      line-height: 1.6;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+    }
+    main {
+      max-width: 1120px;
+      margin: auto;
+      padding: 40px 28px 80px;
+    }
+    header {
+      background: #132b46;
+      color: white;
+      padding: 38px;
+      border-radius: 20px;
+    }
+    h1 {
+      font-size: clamp(27px, 4vw, 42px);
+      line-height: 1.15;
+      margin: 12px 0 20px;
+    }
+    h2 {
+      font-size: 25px;
+      margin-top: 42px;
+    }
+    h3 {
+      font-size: 21px;
+      line-height: 1.35;
+      margin: 12px 0;
+    }
+    p {
+      max-width: 95ch;
+    }
+    a {
+      color: #1163a1;
+    }
+    header a {
+      color: #cde7ff;
+    }
+    .eyebrow {
+      font-size: 13px;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: #b7d8ed;
+    }
+    .lead {
+      font-size: 18px;
+    }
+    .meta {
+      color: #d0deec;
+      font-size: 14px;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 22px 0;
+    }
+    .metric {
+      background: white;
+      border: 1px solid #dce4ee;
+      border-radius: 12px;
+      padding: 17px;
+    }
+    .metric strong {
+      font-size: 27px;
+      display: block;
+    }
+    .metric span {
+      font-size: 13px;
+      color: #536579;
+    }
+    nav {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin: 25px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: white;
+      font-size: 14px;
+    }
+    td,
+    th {
+      text-align: left;
+      vertical-align: top;
+      padding: 14px;
+      border-bottom: 1px solid #dce4ee;
+    }
+    th {
+      background: #e7eef5;
+    }
+    .scroll {
+      overflow-x: auto;
+    }
+    .callout {
+      padding: 20px 23px;
+      border-left: 5px solid #cd7919;
+      background: #fff5e4;
+      border-radius: 4px;
+    }
+    .filters {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      background: #f3f6faf5;
+      padding: 14px 0;
+      z-index: 1;
+    }
+    .filters label {
+      font-size: 14px;
+    }
+    input,
+    select {
+      font: inherit;
+      border: 1px solid #b6c5d6;
+      border-radius: 7px;
+      padding: 9px;
+      background: white;
+    }
+    input {
+      min-width: 220px;
+      flex: 1;
+    }
+    article {
+      background: white;
+      border: 1px solid #d9e2ed;
+      border-radius: 14px;
+      padding: 25px;
+      margin: 16px 0;
+      scroll-margin-top: 90px;
+    }
+    .tag {
+      display: inline-block;
+      border-radius: 5px;
+      padding: 2px 9px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-right: 10px;
+    }
+    .P1 {
+      background: #ffe1df;
+      color: #9f2723;
+    }
+    .P2 {
+      background: #fff0cd;
+      color: #805a00;
+    }
+    .area {
+      font-size: 14px;
+      color: #56687d;
+    }
+    .evidence {
+      font-size: 14px;
+      color: #325c80;
+      background: #edf5fc;
+      padding: 8px 11px;
+      border-radius: 5px;
+    }
+    .refs {
+      display: grid;
+      gap: 9px;
+      margin-top: 12px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    code {
+      font-family: Consolas, monospace;
+      font-size: 0.9em;
+    }
+    summary {
+      cursor: pointer;
+      color: #145c93;
+    }
+    li {
+      margin: 10px 0;
+    }
+    .note {
+      color: #5b6a7c;
+      font-size: 14px;
+    }
+    .foot {
+      border-top: 1px solid #ccd9e6;
+      margin-top: 35px;
+      padding-top: 15px;
+      font-size: 13px;
+      color: #5b6a7c;
+    }
+    button {
+      font: inherit;
+      padding: 8px 12px;
+      border: 1px solid #bcccdc;
+      background: white;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    @media (max-width: 650px) {
+      main {
+        padding: 20px 14px;
+      }
+      header {
+        padding: 25px;
+      }
+      .metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      article {
+        padding: 19px;
+      }
+      h3 {
+        font-size: 19px;
+      }
+      td,
+      th {
+        padding: 10px;
+      }
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      main {
+        padding: 0;
+      }
+      .filters,
+      nav,
+      button {
+        display: none;
+      }
+      header {
+        background: #eef3f8;
+        color: #172537;
+      }
+      .eyebrow,
+      .meta {
+        color: #536579;
+      }
+      article {
+        break-inside: avoid;
+      }
+      details > .refs {
+        display: grid;
+      }
+      h2 {
+        break-after: avoid;
+      }
+      .metrics {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+  </style>
+  <main>
+    <header>
+      <div class="eyebrow">Revisión técnica del proyecto · 11 noviembre 2026</div>
+      <h1>Finesa — Inventario TI y actas digitales</h1>
+      <p class="lead">
+        La arquitectura tiene una base útil y la compilación y las pruebas pasan. Sin embargo, hay
+        defectos verificables en identidad, integridad de firma e inventario que deben corregirse
+        antes de ampliar el uso o tratar las actas como evidencia documental fiable.
+      </p>
+      <p class="meta">
+        Revisión del árbol de trabajo actual, incluidos cambios locales previos. Commit de
+        referencia e216e47. No se modificó código funcional ni la base de datos operativa.
+      </p>
+    </header>
+    <div class="metrics">
+      <div class="metric">
+        <strong>197 + 4</strong><span>Pruebas aprobadas: aplicación y lanzador</span>
+      </div>
+      <div class="metric"><strong>26</strong><span>Hallazgos principales documentados</span></div>
+      <div class="metric">
+        <strong>10 P1</strong><span>Prioritarios; algunos exigen condiciones expresas</span>
+      </div>
+      <div class="metric">
+        <strong>117</strong><span>Archivos TS/TSX · 29.924 líneas con generados</span>
+      </div>
+    </div>
+    <nav aria-label="Índice">
+      <a href="#alcance">Alcance</a><a href="#arquitectura">Arquitectura</a
+      ><a href="#validacion">Validación</a><a href="#hallazgos">Hallazgos</a
+      ><a href="#operacion">Operación</a><a href="#plan">Orden de corrección</a>
+    </nav>
+    <section id="alcance">
+      <h2>Alcance y límites de la revisión</h2>
+      <p>
+        Se revisaron rutas, componentes de negocio, utilidades cliente, funciones de servidor,
+        autenticación, firma/PDF, cuatro migraciones, pruebas, dependencias, scripts Windows/Node,
+        configuración Docker y documentación. Se contrastó la integración local de
+        <code>supabase-runtime</code> con la revisión fijada por el proyecto; no se auditó todo el
+        código upstream de Supabase ni todas las dependencias transitivas.
+      </p>
+      <p>
+        Las reproducciones de base de datos usaron PGlite aislado con el mismo helper de las
+        pruebas. Las comprobaciones adicionales de firma/PDF ejecutaron funciones reales en memoria
+        con dependencias controladas. Los problemas de interfaz se sustentan en código; no se
+        recorrieron sesiones reales en navegador. No se accedió a credenciales reales, no se
+        ejecutaron ataques contra servicios, no se aplicaron migraciones y no se verificaron
+        firewall efectivo, TLS ni restauración de respaldo.
+      </p>
+      <p>
+        Se preservaron los cambios locales preexistentes. Se generaron este informe, evidencias de
+        lint y una copia de compilación bajo <code>.cache/analysis-build-20261111</code>, sin
+        reemplazar la compilación instalada.
+      </p>
+    </section>
+    <section id="arquitectura">
+      <h2>Cómo está construido</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Capa</th>
+              <th>Implementación y responsabilidad</th>
+              <th>Evaluación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Interfaz</td>
+              <td>
+                React 19, TanStack Router/Start, Tailwind, Radix; 24 archivos de rutas. Inventario,
+                empleados, actas, compras, proveedores, reportes, auditoría y portal.
+              </td>
+              <td>
+                Buen alcance funcional. La presentación mezcla consultas, reglas y flujos de
+                escritura en componentes grandes.
+              </td>
+            </tr>
+            <tr>
+              <td>Datos de cliente</td>
+              <td>
+                React Query y Supabase directo para CRUD; RPC para operaciones críticas. Sesión en
+                localStorage y rutas autenticadas sin SSR.
+              </td>
+              <td>
+                RLS debe proteger cada acceso, incluso cuando la UI y los middlewares bloquean la
+                navegación.
+              </td>
+            </tr>
+            <tr>
+              <td>Servidor</td>
+              <td>
+                Funciones TanStack sobre Nitro/Node. PIN con HMAC, administración Auth, tokens de
+                firma, PDF y descargas.
+              </td>
+              <td>
+                Service role está reservado al servidor, pero obliga a validar explícitamente
+                autorización, filas afectadas y todos los errores.
+              </td>
+            </tr>
+            <tr>
+              <td>Base de datos</td>
+              <td>
+                PostgreSQL/Supabase: 21 tablas con RLS, 42 políticas, 40 triggers y 38 funciones
+                distintas en las migraciones examinadas.
+              </td>
+              <td>
+                Acertado centralizar movimientos. Faltan comprobaciones finales y pertenencia en
+                rutas privilegiadas.
+              </td>
+            </tr>
+            <tr>
+              <td>Documentos</td>
+              <td>
+                Firma PNG, PDF con pdf-lib, hash SHA-256, Storage privado y enlaces temporales.
+              </td>
+              <td>
+                El hash aporta verificación técnica; no compensa sobrescrituras ni prueba por sí
+                solo identidad o consentimiento. No se evaluó validez jurídica.
+              </td>
+            </tr>
+            <tr>
+              <td>Infraestructura</td>
+              <td>
+                Supabase autogestionado con Docker/Envoy, configuración fuera de OneDrive, volúmenes
+                persistentes y Node local.
+              </td>
+              <td>
+                Base razonable para prueba controlada. Respaldo, supervisión, HTTPS y operación
+                corporativa requieren trabajo explícito.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        El recorrido más sensible combina
+        <b
+          >selección de equipos → acta pendiente → captura o token → generación de archivos → cambio
+          de estado en PostgreSQL → movimiento de inventario</b
+        >. El archivo y la transición en base de datos no forman hoy una unidad recuperable; ahí se
+        concentran varios hallazgos.
+      </p>
+      <p>
+        Hay fortalezas concretas: tokens de 32 bytes y caducidad de 15 minutos, validación de red
+        basada en la conexión TCP, separación de claves del servidor, auditoría con bloqueo de
+        UPDATE/DELETE, recepción con bloqueo de filas, migraciones con checksum, paginación en
+        varios módulos y carga diferida de bibliotecas pesadas.
+      </p>
+    </section>
+    <section id="validacion">
+      <h2>Qué se ejecutó y qué demuestra</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Comprobación</th>
+              <th>Resultado</th>
+              <th>Límite</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bun run test</code></td>
+              <td>17 archivos, 197 pruebas aprobadas; 62,67 s.</td>
+              <td>
+                Mocks de Auth, middlewares y Storage; no prueba completa HTTP ni concurrencia real.
+              </td>
+            </tr>
+            <tr>
+              <td><code>node --test scripts/local-runtime.test.mjs</code></td>
+              <td>4 de 4 aprobadas.</td>
+              <td>Cubre resolución de carpetas; no arranque Docker, migración o recuperación.</td>
+            </tr>
+            <tr>
+              <td><code>tsc --noEmit</code></td>
+              <td>Correcto.</td>
+              <td>Tipos correctos no demuestran autorización ni consistencia funcional.</td>
+            </tr>
+            <tr>
+              <td><code>bun run build</code> en copia</td>
+              <td>Cliente y servidor compilados correctamente.</td>
+              <td>
+                Sin iniciar el resultado ni autenticarlo. Avisos por inputValidator deprecado.
+              </td>
+            </tr>
+            <tr>
+              <td>ESLint excluyendo cachés</td>
+              <td>32.360 errores y 26 avisos; 32.358 errores de formato.</td>
+              <td>
+                29.356 son eliminación de CR. No deben interpretarse como 32.360 defectos de
+                negocio.
+              </td>
+            </tr>
+            <tr>
+              <td>Reproducciones adicionales</td>
+              <td>
+                Fallos de pertenencia, vínculo de identidad, firma con estado obsoleto, recepción
+                negativa y dirección nula reproducidos en PGlite. Cero filas y desbordamiento de PDF
+                comprobados en memoria.
+              </td>
+              <td>Ver grado de evidencia de cada hallazgo. No se modificaron datos operativos.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        La suite existente es valiosa, pero no cubre los casos negativos encontrados. Los mocks
+        pueden aceptar consultas que la base real no devolvería, como el filtro de cédulas. El
+        helper SQL carga sólo tres de las cuatro migraciones. No se encontró una configuración de CI
+        propia del proyecto que imponga estas comprobaciones.
+      </p>
+      <p>
+        La compilación divide módulos por ruta, aunque los archivos principales más grandes rondan
+        424–454 kB sin gzip: entrada, estadísticas, reporte PDF y XLSX. Esto es una oportunidad de
+        medición y ajuste, no una latencia demostrada. No se ejecutó Lighthouse ni una prueba de
+        carga.
+      </p>
+    </section>
+    <section id="hallazgos">
+      <h2>Hallazgos principales</h2>
+      <p class="note">
+        P1: corregir con prioridad por seguridad o integridad de documentos. P2: corregir en la
+        siguiente etapa de estabilización. Cada entrada distingue ejecución, revisión estática y
+        precondiciones. No se afirma que haya ocurrido explotación.
+      </p>
+      <div class="filters">
+        <label for="priority">Prioridad</label
+        ><select id="priority">
+          <option value="all">Todas</option>
+          <option>P1</option>
+          <option>P2</option></select
+        ><input
+          id="query"
+          type="search"
+          aria-label="Buscar hallazgos"
+          placeholder="Buscar por módulo, defecto o archivo"
+        /><span id="count">26 hallazgos</span><button id="expand">Ver evidencias</button>
+      </div>
+      <article id="h01" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Dependencias · H01</span>
+        <h3>Vite y Rolldown vulnerables si se expone el servidor de desarrollo</h3>
+        <p class="evidence">Versión y condición verificadas; no se ejecutó un exploit.</p>
+        <p>
+          <b>Escenario.</b> El proyecto fija Vite 8.1.5 y fuerza Rolldown 1.2.1.
+          server.host=&quot;::&quot; expone el servidor que arranca bun run dev. El aviso
+          GHSA-p4f5-76q4-ffq7, publicado el 10 de noviembre de 2026, incluye estas versiones y exige
+          exposición de red como condición.
+        </p>
+        <p>
+          <b>Impacto.</b> Un tercero que alcance ese servidor de desarrollo puede ejecutar código en
+          el equipo. Esto no demuestra exposición ni compromiso de la instalación actual, y el aviso
+          no describe el servidor Nitro compilado.
+        </p>
+        <p>
+          <b>Corrección.</b> Actualizar una combinación soportada y corregida de Vite y Rolldown,
+          retirar o ajustar el override y regenerar el lockfile. Por ejemplo, el aviso indica Vite
+          8.2.5/8.3.7 con Rolldown 1.2.17, o Vite 8.1.7 con Rolldown 1.1.7. Restringir también el
+          bind de desarrollo a loopback cuando no se necesite LAN.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>package.json:18</code><code>package.json:99</code><code>vite.config.ts:8</code
+            ><a
+              href="https://github.com/vitejs/vite/security/advisories/GHSA-p4f5-76q4-ffq7"
+              target="_blank"
+              rel="noreferrer"
+              >Aviso primario de seguridad</a
+            >
+          </div>
+        </details>
+      </article>
+      <article id="h02" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Identidad · H02</span>
+        <h3>El vínculo editable empleado–usuario permite suplantar al receptor</h3>
+        <p class="evidence">Cambio de vínculo reproducido en PGlite; extremo servidor revisado.</p>
+        <p>
+          <b>Escenario.</b> Un auxiliar con empleados_editar actualiza empleados.user_id con su
+          propio UUID. my_empleado_id() devuelve entonces ese empleado. firmarComoEmpleado sólo
+          compara ese vínculo contra context.userId antes de usar el cliente privilegiado.
+        </p>
+        <p>
+          <b>Impacto.</b> Puede firmar en nombre del receptor sin usar su PIN ni tener
+          firmas_capturar. También puede alterar campos de bloqueo de PIN por escritura directa.
+        </p>
+        <p>
+          <b>Corrección.</b> Proteger las columnas de autenticación frente a INSERT/UPDATE general.
+          Gestionar el vínculo mediante una operación restringida y validar la identidad y el rol
+          del receptor al firmar. Separar edición de ficha y administración del acceso.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:175</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:224</code
+            ><code>src\lib\firmas.functions.ts:92</code>
+          </div>
+        </details>
+      </article>
+      <article id="h03" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Firma · H03</span>
+        <h3>La firma no es idempotente y puede sobrescribir el PDF definitivo</h3>
+        <p class="evidence">
+          Función real ejecutada en memoria con UPDATE de cero filas; carrera deducida del orden de
+          operaciones.
+        </p>
+        <p>
+          <b>Escenario.</b> ejecutarFirma genera y sube firma/PDF a rutas fijas con upsert antes de
+          actualizar el acta pendiente. No comprueba cuántas filas actualiza. La prueba de cero
+          filas devolvió ok:true, hizo dos subidas y registró FIRMA.
+        </p>
+        <p>
+          <b>Impacto.</b> Dos firmas concurrentes, o firma frente a anulación, pueden devolver éxito
+          falso. La solicitud perdedora puede sobrescribir el archivo de la ganadora, dejando
+          pdf_hash y metadatos que no corresponden al PDF descargado. Las políticas de Storage para
+          authenticated no restringen al service role utilizado aquí.
+        </p>
+        <p>
+          <b>Corrección.</b> Reservar la operación por acta, usar nombres únicos sin sobrescritura y
+          confirmar con una transición atómica que devuelva la fila. Gestionar recuperación y
+          limpieza de artefactos que no se confirmaron. Añadir pruebas concurrentes con Storage y
+          PostgreSQL reales.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\firmas.server.ts:281</code><code>src\lib\firmas.server.ts:300</code
+            ><code>supabase\migrations\20261022120000_mejoras_actas_baja_storage.sql:72</code>
+          </div>
+        </details>
+      </article>
+      <article id="h04" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Inventario · H04</span>
+        <h3>La firma aplica movimientos sin revalidar la situación actual</h3>
+        <p class="evidence">Reproducido en PGlite.</p>
+        <p>
+          <b>Escenario.</b> Crear entrega pendiente, enviar el equipo a reparación, desactivar al
+          empleado y luego firmar. El resultado fue equipo asignado a empleado inactivo, conservando
+          reparacion_inicio. Las comprobaciones se hacen al crear líneas, pero no al confirmar la
+          firma.
+        </p>
+        <p>
+          <b>Impacto.</b> Un documento pendiente puede sobreescribir cambios legítimos posteriores,
+          incluso un estado de baja. El inventario y el responsable pueden quedar inconsistentes.
+        </p>
+        <p>
+          <b>Corrección.</b> Bloquear acta, empleado y equipos en orden estable y revalidar
+          actividad, propietario, estado y responsable al firmar. Cancelar toda la transacción
+          cuando alguna condición haya cambiado.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:654</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:667</code
+            ><code>src\lib\firmas.server.ts:262</code>
+          </div>
+        </details>
+      </article>
+      <article id="h05" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Aislamiento · H05</span>
+        <h3>RPC y referencias de actas permiten cruzar ecosistemas</h3>
+        <p class="evidence">
+          Dos casos reproducidos en PGlite; requiere datos de más de un ecosistema.
+        </p>
+        <p>
+          <b>Escenario.</b> Un auxiliar A no puede leer el equipo B, pero
+          cambiar_estado_equipo(B,...) lo modifica. También pudo añadir un equipo B invisible a un
+          acta A y asignarlo al empleado A. Las funciones SECURITY DEFINER omiten la comprobación
+          owner_id.
+        </p>
+        <p>
+          <b>Impacto.</b> La protección de SELECT por RLS no basta para estas operaciones
+          privilegiadas. El defecto es latente si sólo existe un ecosistema; el modelo y sus tests
+          sí contemplan varios.
+        </p>
+        <p>
+          <b>Corrección.</b> Comprobar owner_id dentro de cada RPC y trigger, además de la
+          coherencia de todas las referencias. Extender la revisión a corregir_serie,
+          finalizar_reparacion y anular_acta. Definir si el producto realmente admite múltiples
+          ecosistemas pese al administrador global único.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261022120000_mejoras_actas_baja_storage.sql:33</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:625</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:957</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:1018</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:1057</code>
+          </div>
+        </details>
+      </article>
+      <article id="h06" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Identidad · H06</span>
+        <h3>La recuperación por correo interno puede tomar una cuenta de personal</h3>
+        <p class="evidence">
+          Confirmado por flujo de código; requiere una cuenta staff con correo interno coincidente.
+        </p>
+        <p>
+          <b>Escenario.</b> Si createUser devuelve already, habilitarAccesoEmpleado busca
+          profiles.email y cambia su contraseña sin repetir la comprobación de roles de la rama
+          user_id existente. crearAuxiliar admite el dominio empleados.finesa.local.
+        </p>
+        <p>
+          <b>Impacto.</b> Si existe una cuenta staff con ese correo y sin empleado vinculado, quien
+          tenga empleados_editar puede generar un PIN para ella y acceder con sus privilegios.
+        </p>
+        <p>
+          <b>Corrección.</b> Reservar el dominio interno para cuentas de empleados, rechazar roles
+          de personal en todas las ramas y verificar asociación y propietario antes de recuperar una
+          cuenta. No vincular sólo por coincidencia de correo.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\usuarios.functions.ts:319</code
+            ><code>src\lib\usuarios.functions.ts:327</code>
+          </div>
+        </details>
+      </article>
+      <article id="h07" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Identidad · H07</span>
+        <h3>El contador de PIN pierde intentos concurrentes</h3>
+        <p class="evidence">
+          Intercalado de operaciones confirmado por código; no se hizo ataque contra Auth.
+        </p>
+        <p>
+          <b>Escenario.</b> Cada solicitud lee pin_intentos, intenta Auth y escribe el valor previo
+          más uno. Varias solicitudes que leen cero pueden terminar guardando uno. El límite de diez
+          peticiones por IP permite más de cinco en paralelo.
+        </p>
+        <p>
+          <b>Impacto.</b> La promesa de bloqueo tras cinco fallos no se cumple bajo concurrencia. El
+          rate limit por IP reduce volumen, pero no reemplaza el bloqueo por cuenta.
+        </p>
+        <p>
+          <b>Corrección.</b> Reservar y contabilizar intentos con una RPC atómica por cuenta,
+          revalidar el bloqueo dentro de la misma operación y probar solicitudes simultáneas.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\usuarios.functions.ts:360</code
+            ><code>src\lib\usuarios.functions.ts:369</code>
+          </div>
+        </details>
+      </article>
+      <article id="h08" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Interfaz · H08</span>
+        <h3>La carga masiva conserva datos al cambiar de usuario</h3>
+        <p class="evidence">
+          Confirmado por estado y ciclo de sesión en código; pendiente recorrido de navegador.
+        </p>
+        <p>
+          <b>Escenario.</b> cargaMasivaStore es un singleton que conserva archivo, filas, contexto,
+          permisos y validación. SIGNED_OUT y cambio de usuario limpian React Query, pero no este
+          store.
+        </p>
+        <p>
+          <b>Impacto.</b> En la misma pestaña, una segunda cuenta con acceso al módulo puede ver los
+          datos de la anterior y continuar con un contexto obsoleto. RLS sigue protegiendo
+          operaciones que lo implementan, pero no elimina la exposición en memoria.
+        </p>
+        <p>
+          <b>Corrección.</b> Asociar el estado a userId/ownerId, reiniciarlo en cambio de identidad
+          y cancelación de sesión, y revalidar identidad y contexto antes de procesar.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\cargaMasivaStore.ts:40</code><code>src\routes\__root.tsx:201</code
+            ><code>src\components\ImportExcel.tsx:148</code>
+          </div>
+        </details>
+      </article>
+      <article id="h09" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Firma · H09</span>
+        <h3>Una firma cancelada puede enviarse con el lienzo vacío</h3>
+        <p class="evidence">
+          Confirmado por transición de estado en código; pendiente recorrido de navegador.
+        </p>
+        <p>
+          <b>Escenario.</b> Dibujar, cancelar y reabrir Firma presencial. El canvas nuevo queda
+          vacío, pero el estado firma no se limpia y habilita la confirmación con la imagen
+          anterior.
+        </p>
+        <p>
+          <b>Impacto.</b> Se puede enviar una firma que el usuario acaba de cancelar y que ya no
+          aparece en pantalla.
+        </p>
+        <p>
+          <b>Corrección.</b> Limpiar la captura al abrir, cancelar y cambiar de acta. Unificar la
+          identidad del documento y el estado de firma. Probar expresamente
+          dibujar–cancelar–reabrir.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\routes\_authenticated\actas.$id.tsx:175</code
+            ><code>src\routes\_authenticated\actas.$id.tsx:238</code
+            ><code>src\components\SignaturePad.tsx:11</code>
+          </div>
+        </details>
+      </article>
+      <article id="h10" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Documentos · H10</span>
+        <h3>El PDF de actas pierde contenido al crecer</h3>
+        <p class="evidence">Función real instrumentada en memoria.</p>
+        <p>
+          <b>Escenario.</b> generarPdf crea una sola página y reduce y por cada equipo, mientras las
+          firmas quedan en posiciones fijas. Con veinte equipos se generó una página, y mínimo -231
+          y 29 dibujos de texto fuera de la página. También se recortan textos y se omiten
+          observaciones si falta espacio.
+        </p>
+        <p>
+          <b>Impacto.</b> Un PDF firmado puede omitir equipos, accesorios o anotaciones y superponer
+          contenido con las firmas.
+        </p>
+        <p>
+          <b>Corrección.</b> Paginar, ajustar texto al ancho disponible y reservar el bloque de
+          firma. Verificar por renderizado actas pequeñas, medianas y extensas, con textos largos y
+          caracteres especiales.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\firmas.server.ts:174</code><code>src\lib\firmas.server.ts:200</code>
+          </div>
+        </details>
+      </article>
+      <article id="h11" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Identidad · H11</span>
+        <h3>Cédulas con separadores pueden quedar sin acceso</h3>
+        <p class="evidence">Confirmado por consulta y esquema; el mock actual oculta el defecto.</p>
+        <p>
+          <b>Escenario.</b> Se habilita un empleado con identificación 1.234.567. La entrada se
+          normaliza a 1234567, pero se busca identificacion ILIKE %4567% en el texto original, que
+          no coincide.
+        </p>
+        <p>
+          <b>Impacto.</b> Un PIN emitido correctamente no permite entrar. La unicidad actual tampoco
+          equipara variantes con y sin separadores.
+        </p>
+        <p>
+          <b>Corrección.</b> Persistir una identificación canónica, única e indexada, y buscarla por
+          igualdad. Revisar y resolver colisiones antes de migrar datos existentes.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\usuarios.functions.ts:357</code
+            ><code>tests\unit\usuarios.functions.test.ts:423</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:178</code>
+          </div>
+        </details>
+      </article>
+      <article id="h12" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Interfaz · H12</span>
+        <h3>La paginación de actas cambia la URL pero no las filas</h3>
+        <p class="evidence">Confirmado por flujo de estado; pendiente navegador.</p>
+        <p>
+          <b>Escenario.</b> usePaginacion inicializa página 1. Los controles sólo modifican
+          search.page/pageSize; la consulta usa pag.desde/hasta, y no se sincroniza el hook ni se
+          consume search.page.
+        </p>
+        <p>
+          <b>Impacto.</b> Siguiente sigue mostrando las primeras 25 actas. Cambiar tamaño tampoco
+          actualiza el estado mientras el componente permanece montado.
+        </p>
+        <p>
+          <b>Corrección.</b> Usar URL como única fuente de página y tamaño. Verificar segunda
+          página, tamaño 50, enlaces directos y regreso desde un detalle.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\routes\_authenticated\actas.index.tsx:110</code
+            ><code>src\routes\_authenticated\actas.index.tsx:199</code
+            ><code>src\routes\_authenticated\actas.index.tsx:597</code
+            ><code>src\components\DataTablePagination.tsx:10</code>
+          </div>
+        </details>
+      </article>
+      <article id="h13" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Reportes · H13</span>
+        <h3>Las actas de cambio se contabilizan como devoluciones completas</h3>
+        <p class="evidence">Confirmado por consultas y cálculo.</p>
+        <p>
+          <b>Escenario.</b> Los reportes no seleccionan direccion por ítem. Si el documento no es
+          tipo entrega, sus equipos cuentan como devueltos. Un cambio de un equipo por otro produce
+          cero entregados y dos devueltos.
+        </p>
+        <p>
+          <b>Impacto.</b> Indicadores y exportaciones difieren de los movimientos reales del
+          inventario.
+        </p>
+        <p>
+          <b>Corrección.</b> Contar por acta_items.direccion y conservar el tipo documental como
+          dimensión separada. Añadir fixture con entrega, devolución y cambio mixto.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\routes\_authenticated\reportes.tsx:277</code
+            ><code>src\routes\_authenticated\reportes.tsx:301</code
+            ><code>src\routes\_authenticated\reportes.tsx:599</code
+            ><code>src\routes\_authenticated\reportes.tsx:631</code>
+          </div>
+        </details>
+      </article>
+      <article id="h14" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Compras · H14</span>
+        <h3>La recepción acepta cantidades negativas y supera lo pedido</h3>
+        <p class="evidence">Reproducido en PGlite.</p>
+        <p>
+          <b>Escenario.</b> Una línea de cantidad 1 recibe tres seriales y p_sin_serial=-2. La suma
+          validada es uno, pero se insertan tres equipos. Resultado: cantidad=1 y recibida=3.
+        </p>
+        <p>
+          <b>Impacto.</b> Un llamador directo de la RPC puede sobre-recibir y desalinear inventario
+          y pedido, aunque la interfaz limite números negativos.
+        </p>
+        <p>
+          <b>Corrección.</b> Validar p_sin_serial&gt;=0, cantidades y arrays. Añadir restricciones
+          de cantidad positiva y recibida entre cero y cantidad; proteger contadores contra
+          escritura directa.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:1128</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:1132</code>
+          </div>
+        </details>
+      </article>
+      <article id="h15" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Autorización · H15</span>
+        <h3>Suspender el perfil no corta todas las lecturas directas</h3>
+        <p class="evidence">Reproducido en PGlite con identidad autenticada.</p>
+        <p>
+          <b>Escenario.</b> Con profiles.activo=false, un auxiliar conserva SELECT de sus equipos
+          porque my_owner_id y varias políticas no verifican actividad.
+        </p>
+        <p>
+          <b>Impacto.</b> Un JWT todavía válido puede seguir leyendo datos por la API aunque la
+          navegación o las funciones de servidor bloqueen la cuenta. No se verificó duración
+          efectiva de sesiones en el despliegue.
+        </p>
+        <p>
+          <b>Corrección.</b> Aplicar actividad en helpers/políticas y RPC del empleado, además de
+          gestionar sesiones. Probar accesos directos con un token emitido antes de suspender.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:354</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:220</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:540</code>
+          </div>
+        </details>
+      </article>
+      <article id="h16" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Inventario · H16</span>
+        <h3>Un cambio admite líneas sin dirección y se firma sin movimiento</h3>
+        <p class="evidence">Reproducido en PGlite.</p>
+        <p>
+          <b>Escenario.</b> direccion acepta NULL. NULL NOT IN (...) no activa la excepción. Se
+          firmó un cambio con dirección nula y el equipo siguió disponible, sin empleado.
+        </p>
+        <p><b>Impacto.</b> Documento firmado y movimiento efectivo dejan de corresponder.</p>
+        <p>
+          <b>Corrección.</b> Rechazar NULL de forma explícita y usar NOT NULL con enum o
+          restricción. Definir y validar si un cambio exige ambos sentidos.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:628</code
+            ><code>supabase\migrations\20261021000000_esquema_consolidado.sql:667</code>
+          </div>
+        </details>
+      </article>
+      <article id="h17" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Firma · H17</span>
+        <h3>El token se consume antes de completar una firma recuperable</h3>
+        <p class="evidence">Confirmado por orden de operaciones.</p>
+        <p>
+          <b>Escenario.</b> firmarConToken marca used_at antes de validar completamente PNG, generar
+          PDF, subir archivos y confirmar el acta.
+        </p>
+        <p>
+          <b>Impacto.</b> Un error de entrada o una caída transitoria deja el documento pendiente y
+          el enlace inutilizable; exige intervención para emitir otro.
+        </p>
+        <p>
+          <b>Corrección.</b> Separar reserva temporal y consumo definitivo, validar antes de
+          reservar y diseñar recuperación segura e idempotente.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\firmas.functions.ts:60</code><code>src\lib\firmas.server.ts:264</code>
+          </div>
+        </details>
+      </article>
+      <article id="h18" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Errores · H18</span>
+        <h3>Varias operaciones críticas ignoran errores y reportan éxito</h3>
+        <p class="evidence">Confirmado por inspección de las ramas.</p>
+        <p>
+          <b>Escenario.</b> cargarActaCompleta ignora error de acta_items; registrarAuditoria no
+          comprueba el INSERT; actualizar permisos borra y reinserta sin transacción; actualizar
+          firma puede borrar el recurso antiguo aunque falle guardar el nuevo path.
+        </p>
+        <p>
+          <b>Impacto.</b> PDF sin equipos, acciones sin trazabilidad, permisos perdidos o firma
+          rota. Un array de permisos duplicados puede fallar por unicidad tras el borrado y aun así
+          devolver éxito.
+        </p>
+        <p>
+          <b>Corrección.</b> Comprobar todos los resultados, usar transacciones para cambios de
+          permisos y finalizar metadatos antes de limpiar recursos anteriores. Las pantallas deben
+          distinguir fallo de lectura y ausencia de datos.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\firmas.server.ts:101</code><code>src\lib\firmas.server.ts:113</code
+            ><code>src\lib\usuarios.functions.ts:133</code
+            ><code>src\lib\ajustes.functions.ts:220</code
+            ><code>src\routes\_authenticated\mi-portal.tsx:40</code>
+          </div>
+        </details>
+      </article>
+      <article id="h19" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Validación · H19</span>
+        <h3>Un PNG pequeño puede declarar dimensiones desmesuradas</h3>
+        <p class="evidence">
+          Cabecera de 30000×30000 aceptada con 3062 bytes; no se ejecutó descompresión grande.
+        </p>
+        <p>
+          <b>Escenario.</b> La validación limita bytes comprimidos y algunas cabeceras, pero no
+          dimensiones ni píxeles. pdf.embedPng entrega los datos a un decodificador que reserva
+          memoria según ancho y alto.
+        </p>
+        <p>
+          <b>Impacto.</b> Una firma suministrada por una cuenta autorizada o por un portador de
+          token puede consumir memoria excesiva y afectar disponibilidad.
+        </p>
+        <p>
+          <b>Corrección.</b> Limitar ancho, alto y píxeles antes de decodificar y validar
+          estructura. No usar un tamaño mínimo de archivo como prueba de que existe un trazo.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\lib\security.server.ts:63</code><code>src\lib\firmas.server.ts:264</code>
+          </div>
+        </details>
+      </article>
+      <article id="h20" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Transacciones · H20</span>
+        <h3>Pedidos y préstamos pueden quedar parcialmente creados</h3>
+        <p class="evidence">
+          Confirmado por llamadas separadas; no se indujo fallo en datos reales.
+        </p>
+        <p>
+          <b>Escenario.</b> Pedidos inserta cabecera y luego líneas sin rollback. La contingencia
+          cambia primero el equipo a reparación y crea después cabecera e ítems. Reintentar tras un
+          fallo parcial puede duplicar cabeceras.
+        </p>
+        <p>
+          <b>Impacto.</b> Pedidos vacíos, préstamos incompletos y estado de equipo distinto de lo
+          comunicado al usuario.
+        </p>
+        <p>
+          <b>Corrección.</b> Crear cabeceras y líneas mediante RPC transaccionales e idempotentes.
+          Definir qué debe ocurrir con reparación si no puede crearse el préstamo.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\components\Pedidos.tsx:166</code
+            ><code>src\routes\_authenticated\equipos.$id.tsx:1115</code
+            ><code>src\routes\_authenticated\equipos.$id.tsx:1138</code>
+          </div>
+        </details>
+      </article>
+      <article id="h21" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Reportes · H21</span>
+        <h3>Exportaciones e historiales pueden truncarse sin aviso</h3>
+        <p class="evidence">
+          Límites de consulta confirmados; depende del volumen y máximo real de PostgREST.
+        </p>
+        <p>
+          <b>Escenario.</b> Directorio usa limit(5000), exportación de equipos limit(2000), y varias
+          respuestas de certificación no paginan. El runtime de referencia fija máximo 1000 filas.
+          Algunos historiales recortan IDs a 200.
+        </p>
+        <p>
+          <b>Impacto.</b> Se exportan menos registros de los esperados. Una respuesta de
+          certificación no recuperada puede mostrarse como pendiente.
+        </p>
+        <p>
+          <b>Corrección.</b> Paginar con orden estable o agregar en servidor, reutilizar fetchAll y
+          contrastar cantidad obtenida con count exacto. Verificar límites efectivos del entorno.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\routes\_authenticated\empleados.index.tsx:158</code
+            ><code>src\routes\_authenticated\equipos.index.tsx:673</code
+            ><code>src\components\Certificaciones.tsx:30</code
+            ><code>src\routes\_authenticated\empleados.$id.tsx:138</code>
+          </div>
+        </details>
+      </article>
+      <article id="h22" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Interfaz · H22</span>
+        <h3>La firma remota no invalida el detalle abierto</h3>
+        <p class="evidence">Confirmado por discrepancia entre claves de consultas.</p>
+        <p>
+          <b>Escenario.</b> Realtime invalida actas/equipos/panel, mientras los detalles usan
+          acta/id y equipo/id y el portal otra clave. El refresco por enfoque está desactivado.
+        </p>
+        <p>
+          <b>Impacto.</b> El técnico puede continuar viendo pendiente y sin PDF un acta que el
+          empleado ya firmó hasta navegar o recargar.
+        </p>
+        <p>
+          <b>Corrección.</b> Centralizar claves e invalidación por entidad y relaciones. Probar el
+          flujo entre dos sesiones y la ficha abierta.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>src\routes\_authenticated\route.tsx:137</code
+            ><code>src\routes\_authenticated\actas.$id.tsx:43</code><code>src\router.tsx:11</code>
+          </div>
+        </details>
+      </article>
+      <article id="h23" data-priority="P1">
+        <div class="tag P1">P1</div>
+        <span class="area">Firma · H23</span>
+        <h3>La ruta de firma del técnico procede de un dato controlable</h3>
+        <p class="evidence">
+          Confirmado por INSERT y descarga privilegiada; requiere conocer una ruta de firma válida.
+        </p>
+        <p>
+          <b>Escenario.</b> actas_before_insert fija tecnico_nombre pero no toma firma_path del
+          perfil. El cliente puede aportar tecnico_firma_path y el servidor lo descarga con service
+          role para incluirlo en el PDF. Además, guardarMiFirma elimina el archivo anterior, que
+          puede seguir referenciado por actas pendientes.
+        </p>
+        <p>
+          <b>Impacto.</b> Puede incorporarse una imagen de firma ajena si se conoce su ruta. Si el
+          técnico actualiza su firma antes de que se firme un acta pendiente, se pierde la imagen
+          referenciada y la generación puede continuar sin su firma, porque no comprueba el error de
+          descarga.
+        </p>
+        <p>
+          <b>Corrección.</b> Derivar técnico y firma en servidor o trigger a partir de identidad
+          autorizada; verificar pertenencia del objeto y preservar una copia inmutable por acta.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>supabase\migrations\20261021000000_esquema_consolidado.sql:589</code
+            ><code>src\lib\firmas.server.ts:273</code><code>src\lib\ajustes.functions.ts:220</code>
+          </div>
+        </details>
+      </article>
+      <article id="h24" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Tooling · H24</span>
+        <h3>El lint no constituye hoy una barrera de calidad útil</h3>
+        <p class="evidence">Ejecutado con exclusión adicional de cachés.</p>
+        <p>
+          <b>Escenario.</b> eslint . recorre .cache/bun porque sólo ignora dist, .output y .vinxi;
+          se interrumpió esa ejecución al comprobar que analizaba dependencias cacheadas. Excluyendo
+          .cache y .tanstack: 32360 errores y 26 avisos en 149 archivos. 32358 errores son Prettier;
+          29356 son exactamente Delete CR.
+        </p>
+        <p>
+          <b>Impacto.</b> El ruido de fin de línea y formato oculta problemas. Sólo dos errores no
+          son de formato: any explícito y prefer-const. Los avisos incluyen ocho de dependencias de
+          hooks y diecisiete de Fast Refresh; no equivalen todos a fallos funcionales.
+        </p>
+        <p>
+          <b>Corrección.</b> Excluir cachés y generados de forma coherente, normalizar política de
+          fin de línea y formato en un cambio separado, corregir errores reales y añadir
+          lint/typecheck/test/build al proceso de integración.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>eslint.config.js:9</code><code>.prettierrc:1</code
+            ><code>src\routes\_authenticated\estadisticas.tsx:171</code
+            ><code>tests\helpers\pglite.ts:55</code>
+          </div>
+        </details>
+      </article>
+      <article id="h25" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Operación · H25</span>
+        <h3>Cambiar la carpeta de configuración no aísla los datos Docker</h3>
+        <p class="evidence">Confirmado por configuración; no se preparó una segunda instalación.</p>
+        <p>
+          <b>Escenario.</b> FINESA_LOCAL_DIR cambia archivos de configuración, pero Compose fija
+          project-name=finesa-local, volúmenes finesa-db/finesa-storage y nombres de contenedores.
+          prepare sólo comprueba .env antes de generar claves.
+        </p>
+        <p>
+          <b>Impacto.</b> Preparar otra carpeta o perder .env y repetir prepare puede reutilizar
+          datos anteriores con claves nuevas y romper el arranque o Auth/Storage.
+        </p>
+        <p>
+          <b>Corrección.</b> Vincular configuración y volúmenes mediante identificador persistente;
+          detectar datos existentes antes de generar secretos. Si sólo se soporta una instalación,
+          impedir explícitamente una segunda preparación.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>scripts\local.mjs:21</code><code>scripts\local.mjs:63</code
+            ><code>deploy\local.override.yml:6</code>
+          </div>
+        </details>
+      </article>
+      <article id="h26" data-priority="P2">
+        <div class="tag P2">P2</div>
+        <span class="area">Dependencias · H26</span>
+        <h3>La importación utiliza una versión de XLSX con avisos de seguridad</h3>
+        <p class="evidence">
+          Versión y uso de lectura verificados; no se procesaron archivos maliciosos.
+        </p>
+        <p>
+          <b>Escenario.</b> xlsx 0.18.5 está afectado por CVE-2023-30533 (contaminación de
+          prototipos, corregida desde 0.19.3) y CVE-2024-22363 (ReDoS, corregida desde 0.20.2).
+          cargaMasiva.ts llama XLSX.read sobre archivos aportados por usuarios.
+        </p>
+        <p>
+          <b>Impacto.</b> El riesgo concreto está en abrir un archivo preparado por un tercero
+          dentro de la sesión del operador; puede alterar el comportamiento del lector o bloquear la
+          pestaña. No se demostró ejecución en servidor ni acceso a la base de datos a partir de
+          estos avisos.
+        </p>
+        <p>
+          <b>Corrección.</b> Adoptar una distribución mantenida y corregida desde la fuente oficial
+          o sustituir el lector tras verificar compatibilidad. Los avisos indican que el paquete
+          histórico xlsx de npm no proporciona las correcciones. Mantener límites de archivo y
+          considerar lectura en un Worker.
+        </p>
+        <details>
+          <summary>Evidencia en código y fuentes</summary>
+          <div class="refs">
+            <code>package.json:78</code><code>src\lib\cargaMasiva.ts:200</code
+            ><a
+              href="https://github.com/advisories/GHSA-4r6h-8v6p-xvw6"
+              target="_blank"
+              rel="noreferrer"
+              >Aviso primario de seguridad</a
+            ><a
+              href="https://github.com/advisories/GHSA-5pgg-2g8v-p4x9"
+              target="_blank"
+              rel="noreferrer"
+              >Aviso primario de seguridad</a
+            >
+          </div>
+        </details>
+      </article>
+    </section>
+    <section>
+      <h2>Observaciones y verificaciones pendientes</h2>
+      <ul>
+        <li>
+          <b>Migraciones de prueba incompletas.</b> tests/helpers/pglite.ts:65–72 enumera tres
+          migraciones y omite la cuarta, que crea buckets. El rol service_role emulado no tiene
+          BYPASSRLS. PGlite no sustituye Auth, PostgREST, Storage ni conexiones concurrentes reales.
+        </li>
+        <li>
+          <b>Secuencia de periféricos.</b> Crear equipo sin serie falló en PGlite por falta de USAGE
+          sobre periferico_seq; puede funcionar en Supabase por privilegios predeterminados, por lo
+          que no se afirma fallo del despliegue. Además lpad(nextval(...),4,...) trunca números
+          desde 10000 y puede generar códigos repetidos (esquema:402).
+        </li>
+        <li>
+          <b>Paz y salvo y reparación.</b> La baja de empleado sólo revisa equipos asignados
+          (esquema:494), pero reparación puede conservar empleado_id. finalizar_reparacion con
+          reasignación no revalida actividad. Conviene definir y probar responsabilidad durante
+          reparación.
+        </li>
+        <li>
+          <b>Concurrencia pendiente de comprobar.</b> La exclusión de un equipo entre actas
+          pendientes usa EXISTS sin bloqueo ni restricción única; la de fallas abiertas es similar.
+          Son carreras plausibles, no reproducidas con conexiones simultáneas de PostgreSQL.
+        </li>
+        <li>
+          <b>Fechas y zona horaria.</b> Los filtros construyen hastaT23:59:59 sin zona. Debe
+          confirmarse la zona efectiva de Postgres; para Colombia conviene usar intervalos de inicio
+          local a inicio del día siguiente, convertidos explícitamente.
+        </li>
+        <li>
+          <b>Índices y escala.</b> Evaluar con EXPLAIN y datos representativos acta_items.equipo_id,
+          pedido_lineas.pedido_id, reparaciones.equipo_id y tokens_firma.acta_id. No se midieron
+          latencias ni carga productiva.
+        </li>
+        <li>
+          <b>Detalles de interfaz.</b> La exportación de alistamiento utiliza columnas de baja; hay
+          adjuntos potencialmente huérfanos tras fallar el registro. La importación detecta
+          duplicados de asignación por texto, no siempre por UUID canónico. Verificar con teclado
+          etiquetas, nombres de botones y foco; el viewport impide zoom.
+        </li>
+        <li>
+          <b>Resolución de Docker.</b> start-local.mjs admite docker en PATH si falta Program Files,
+          pero local.mjs en Windows siempre utiliza Program Files: una instalación alternativa puede
+          pasar --check y fallar al iniciar.
+        </li>
+      </ul>
+      <p>
+        Los archivos más extensos incluyen usuarios (~1.609 líneas), StockAlertas (~1.460), detalle
+        de equipos (~1.344), estadísticas (~1.338), reportes (~1.324) y ajustes (~1.221). Extraer
+        servicios de datos, operaciones transaccionales y componentes de formulario ayudaría a
+        evitar divergencias entre paginación, fechas, caché y errores. Conviene hacerlo después de
+        cubrir las reglas críticas con regresiones.
+      </p>
+    </section>
+    <section id="operacion">
+      <h2>Estado de la operación local</h2>
+      <p>
+        El checkout Supabase coincide con <code>bc27d2661edd09a5d0b8d76ce33da6d4071a756e</code>. El
+        override enlaza el servicio real api-gw, expone gateway/Studio y Mailpit en loopback, retira
+        puertos del pooler y usa volúmenes persistentes para PostgreSQL y Storage. No se examinó el
+        estado efectivo del motor Docker.
+      </p>
+      <ul>
+        <li>
+          <b>LAN:</b> el diseño actual habilita firma por token. Administración y portal completo
+          desde otros equipos necesitan URLs y publicación protegida de API; el cliente actual
+          apunta a localhost. Esto está documentado y no se trata como defecto.
+        </li>
+        <li>
+          <b>Respaldo:</b> hay una recomendación, pero no una implementación ni restauración
+          probada. Deben cubrirse PostgreSQL, Auth, metadatos y objetos de Storage, claves locales y
+          volumen db-config con material pgsodium. Copiar OneDrive no respalda volúmenes Docker.
+        </li>
+        <li>
+          <b>HTTPS y proxy:</b> un proxy local puede hacer que Node vea 127.0.0.1 y autorice
+          cualquier origen a través de él. La frontera de red debe mantenerse en firewall/proxy o
+          mediante una confianza de proxy explícita; no basta con añadir TLS.
+        </li>
+        <li>
+          <b>Disponibilidad:</b> Node depende de la consola abierta; falta un supervisor o servicio
+          si se quiere continuidad. Mailpit captura correo de prueba, no entrega correo externo.
+        </li>
+        <li>
+          <b>Actualizaciones:</b> el lanzador ejecuta up y serve. Migración y recompilación son
+          pasos separados, y hay que conservar el secreto usado para derivar los PIN.
+        </li>
+      </ul>
+      <p>
+        Las recomendaciones generales de aislamiento y operación se contrastaron con la
+        <a href="https://supabase.com/docs/guides/database/postgres/row-level-security"
+          >documentación de RLS de Supabase</a
+        >
+        y su
+        <a href="https://supabase.com/docs/guides/self-hosting/docker"
+          >guía oficial de despliegue Docker</a
+        >. Los defectos del proyecto se sustentan en las rutas y reproducciones indicadas.
+      </p>
+    </section>
+    <section id="plan">
+      <h2>Orden recomendado de corrección</h2>
+      <ol>
+        <li>
+          <b>Dependencias y acceso:</b> resolver el aviso Vite/Rolldown, proteger identidad del
+          empleado y firma técnica, cerrar recuperación de cuentas privilegiadas y revisar
+          suspensión efectiva.
+        </li>
+        <li>
+          <b>Integridad de firma:</b> implementar operación idempotente y recuperable, revalidar
+          inventario al confirmar, exigir fila actualizada y comprobar auditoría. Verificar hash del
+          archivo final y solicitudes concurrentes.
+        </li>
+        <li>
+          <b>Integridad de base de datos:</b> cerrar cruces de owner, cantidades negativas,
+          direcciones nulas y demás campos gestionados exclusivamente por el sistema.
+        </li>
+        <li>
+          <b>Recorridos funcionales:</b> corregir cancelación de firma, sesión/carga masiva,
+          cédulas, paginación, PDF multipágina, conteo de cambios, exportaciones y refresco remoto.
+        </li>
+        <li>
+          <b>Operación y mantenimiento:</b> restauración de respaldo probada, HTTPS con frontera de
+          red correcta, supervisión del proceso, CI y reducción gradual de componentes grandes.
+        </li>
+      </ol>
+      <div class="callout">
+        <b>Criterio de salida recomendado:</b> las pruebas actuales deben seguir pasando y cada
+        hallazgo corregido debe tener una regresión significativa. Antes de ampliar el despliegue,
+        probar con dos sesiones reales la firma presencial/remota/portal, suspensión, fallos de
+        Storage, cambios de estado entre creación y firma, importación entre usuarios y recuperación
+        desde respaldo.
+      </div>
+    </section>
+    <p class="foot">
+      Informe técnico de análisis, no certificación de seguridad ni auditoría legal. Las prioridades
+      reflejan el código y la configuración observados el 11 de noviembre de 2026. No se aplicaron
+      correcciones funcionales.
+    </p>
+  </main>
+  <script>
+    const cards = [...document.querySelectorAll("article")],
+      p = document.querySelector("#priority"),
+      q = document.querySelector("#query");
+    function filter() {
+      let n = 0;
+      for (const c of cards) {
+        c.hidden = !(
+          (p.value === "all" || c.dataset.priority === p.value) &&
+          c.textContent.toLocaleLowerCase("es").includes(q.value.toLocaleLowerCase("es"))
+        );
+        if (!c.hidden) n++;
+      }
+      document.querySelector("#count").textContent = n + " hallazgos";
+    }
+    p.addEventListener("change", filter);
+    q.addEventListener("input", filter);
+    document.querySelector("#expand").addEventListener("click", () => {
+      const ds = cards.filter((c) => !c.hidden).map((c) => c.querySelector("details"));
+      const open = ds.some((d) => !d.open);
+      ds.forEach((d) => (d.open = open));
+    });
+  </script>
+</html>

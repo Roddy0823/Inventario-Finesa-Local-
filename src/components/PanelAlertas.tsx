@@ -1,3 +1,6 @@
+import { fetchAll } from "@/lib/fetchAll";
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { hoyColombia } from "@/lib/fechas";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +9,13 @@ import { useCatalogos } from "@/lib/catalogos";
 import { errMsg, fmtFecha } from "@/lib/constantes";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AlertTriangle, Clock } from "lucide-react";
 
@@ -22,42 +31,51 @@ type Falla = {
 export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
   const cat = useCatalogos();
   const qc = useQueryClient();
-  const [abierto, setAbierto] = useState<{ f: Falla; estado: "atendido" | "descartado" | "en_reparacion" } | null>(null);
+  const [abierto, setAbierto] = useState<{
+    f: Falla;
+    estado: "atendido" | "descartado" | "en_reparacion";
+  } | null>(null);
   const [resp, setResp] = useState("");
   const q = useQuery({
     queryKey: ["panel", "alertas"],
     queryFn: async () => {
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyColombia();
       const [f, p] = await Promise.all([
-        supabase
-          .from("reportes_falla")
-          .select("id, descripcion, created_at, equipo:equipos(id, serie, modelo, tipo_id), empleado:empleados(nombre)")
-          .eq("estado", "abierto")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("equipos")
-          .select("id, serie, modelo, tipo_id, prestamo_hasta, empleado:empleados(nombre)")
-          .eq("estado", "asignado")
-          .not("prestamo_hasta", "is", null)
-          .lte("prestamo_hasta", hoy)
-          .order("prestamo_hasta"),
+        fetchAll((a, b) =>
+          supabase
+            .from("reportes_falla")
+            .select(
+              "id, descripcion, created_at, equipo:equipos(id, serie, modelo, tipo_id), empleado:empleados(nombre)",
+            )
+            .eq("estado", "abierto")
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(a, b),
+        ),
+        fetchAll((a, b) =>
+          supabase
+            .from("equipos")
+            .select("id, serie, modelo, tipo_id, prestamo_hasta, empleado:empleados(nombre)")
+            .eq("estado", "asignado")
+            .not("prestamo_hasta", "is", null)
+            .lte("prestamo_hasta", hoy)
+            .order("prestamo_hasta")
+            .order("id")
+            .range(a, b),
+        ),
       ]);
-      return { fallas: (f.data ?? []) as unknown as Falla[], vencidos: p.data ?? [] };
+      return { fallas: f as unknown as Falla[], vencidos: p };
     },
   });
 
   async function cerrar() {
     if (!abierto) return;
     const { f, estado } = abierto;
-    if (estado === "en_reparacion" && f.equipo) {
-      const { error } = await supabase.rpc("cambiar_estado_equipo", {
-        p_equipo: f.equipo.id,
-        p_estado: "en_reparacion",
-        p_motivo: `Falla reportada por el empleado: ${f.descripcion}${resp.trim() ? ` · ${resp.trim()}` : ""}`,
-      });
-      if (error) return toast.error(errMsg(error));
-    }
-    const { error } = await supabase.rpc("atender_falla", { p_reporte: f.id, p_estado: estado, p_respuesta: resp.trim() });
+    const { error } = await supabase.rpc("atender_falla", {
+      p_reporte: f.id,
+      p_estado: estado,
+      p_respuesta: resp.trim(),
+    });
     if (error) return toast.error(errMsg(error));
     toast.success("Reporte cerrado");
     setAbierto(null);
@@ -67,6 +85,7 @@ export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
   }
 
   const d = q.data;
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
   if (!d || (!d.fallas.length && !d.vencidos.length)) return null;
 
   return (
@@ -84,13 +103,19 @@ export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
                   <span>
                     <b className="font-semibold">{f.empleado?.nombre}</b> ·{" "}
                     {f.equipo && (
-                      <Link to="/equipos/$id" params={{ id: f.equipo.id }} className="text-primary hover:underline">
+                      <Link
+                        to="/equipos/$id"
+                        params={{ id: f.equipo.id }}
+                        className="text-primary hover:underline"
+                      >
                         {cat.nombre(f.equipo.tipo_id)} {f.equipo.modelo}{" "}
                         <span className="font-mono text-xs">{f.equipo.serie}</span>
                       </Link>
                     )}
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">{fmtFecha(f.created_at, true)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {fmtFecha(f.created_at, true)}
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground">{f.descripcion}</p>
                 {puedeEditar && (
@@ -98,10 +123,18 @@ export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
                     <Button size="sm" onClick={() => setAbierto({ f, estado: "en_reparacion" })}>
                       Enviar a reparación
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setAbierto({ f, estado: "atendido" })}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAbierto({ f, estado: "atendido" })}
+                    >
                       Atendida
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setAbierto({ f, estado: "descartado" })}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setAbierto({ f, estado: "descartado" })}
+                    >
                       Descartar
                     </Button>
                   </div>
@@ -126,10 +159,13 @@ export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
                   className="flex items-center justify-between gap-2 px-5 py-3 text-sm transition-colors hover:bg-muted/50"
                 >
                   <span>
-                    {cat.nombre(e.tipo_id)} {e.modelo} <span className="font-mono text-xs">{e.serie}</span> ·{" "}
+                    {cat.nombre(e.tipo_id)} {e.modelo}{" "}
+                    <span className="font-mono text-xs">{e.serie}</span> ·{" "}
                     {(e.empleado as { nombre: string } | null)?.nombre}
                   </span>
-                  <span className="font-mono text-xs text-destructive">venció {fmtFecha(e.prestamo_hasta)}</span>
+                  <span className="font-mono text-xs text-destructive">
+                    venció {fmtFecha(e.prestamo_hasta)}
+                  </span>
                 </Link>
               </li>
             ))}
@@ -147,7 +183,11 @@ export function PanelAlertas({ puedeEditar }: { puedeEditar: boolean }) {
                   : "Descartar reporte"}
             </DialogTitle>
           </DialogHeader>
-          <Textarea placeholder="Comentario (opcional)" value={resp} onChange={(e) => setResp(e.target.value)} />
+          <Textarea
+            placeholder="Comentario (opcional)"
+            value={resp}
+            onChange={(e) => setResp(e.target.value)}
+          />
           <DialogFooter>
             <Button onClick={cerrar}>Confirmar</Button>
           </DialogFooter>

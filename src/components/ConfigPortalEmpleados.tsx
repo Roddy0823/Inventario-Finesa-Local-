@@ -53,7 +53,8 @@ export function ConfigPortalEmpleados() {
             <span className="text-sm">Acceso al Portal de empleados en el inicio de sesión</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Defina si los colaboradores pueden ingresar con su cédula y PIN desde la pantalla principal.
+            Defina si los colaboradores pueden ingresar con su cédula y PIN desde la pantalla
+            principal.
           </p>
         </div>
         <Switch
@@ -85,7 +86,8 @@ export function ConfigPortalEmpleados() {
               {activo && <CheckCircle2 className="h-4 w-4 text-primary" />}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              El login presenta el selector <b>Portal empleado</b> y <b>Mesa de servicios</b>. Los empleados consultan sus equipos, reportan fallas y certifican inventario.
+              El login presenta el selector <b>Portal empleado</b> y <b>Mesa de servicios</b>. Los
+              empleados consultan sus equipos, reportan fallas y certifican inventario.
             </p>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg border border-border/70 bg-muted/60 p-1 text-center text-[10px] font-medium">
@@ -114,7 +116,8 @@ export function ConfigPortalEmpleados() {
               {!activo && <CheckCircle2 className="h-4 w-4 text-primary" />}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Oculta el acceso de empleados en el login y bloquea sesiones de portal. Los enlaces únicos para firmar actas (`/firmar/...`) siguen operando normalmente.
+              Oculta el acceso de empleados en el login y bloquea sesiones de portal. Los enlaces
+              únicos para firmar actas (`/firmar/...`) siguen operando normalmente.
             </p>
           </div>
           <div className="mt-4 rounded-lg border border-primary/25 bg-primary/10 py-1.5 text-center text-[10px] font-semibold text-primary">

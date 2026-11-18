@@ -15,6 +15,7 @@ export default defineConfig({
     alias: { "@": src },
   },
   test: {
+    maxWorkers: 2,
     projects: [
       {
         extends: true,

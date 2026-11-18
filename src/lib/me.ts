@@ -23,7 +23,8 @@ export const meQuery = queryOptions({
   queryFn: async (): Promise<Me | null> => {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
-      if (error.status === 401 || error.status === 403 || error.name === "AuthSessionMissingError") return null;
+      if (error.status === 401 || error.status === 403 || error.name === "AuthSessionMissingError")
+        return null;
       throw error;
     }
     const user = data.user;
@@ -39,7 +40,8 @@ export const meQuery = queryOptions({
     if (pe.error) throw pe.error;
     const roles = (r.data ?? []).map((x) => x.role as string);
     const dbPermisos = (pe.data ?? []).map((x) => x.permiso as Permiso);
-    const rawExtra = (user.app_metadata as { permisos_extra?: unknown } | undefined)?.permisos_extra;
+    const rawExtra = (user.app_metadata as { permisos_extra?: unknown } | undefined)
+      ?.permisos_extra;
     const extraPermisos = Array.isArray(rawExtra)
       ? (rawExtra.filter((x): x is string => typeof x === "string") as Permiso[])
       : [];

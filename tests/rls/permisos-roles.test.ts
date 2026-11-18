@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createTestDatabase, withUser } from "../helpers/pglite";
-import { asignarRol, concederPermiso, crearCatalogosBasicos, crearUsuario } from "../helpers/fixtures";
+import {
+  asignarRol,
+  concederPermiso,
+  crearCatalogosBasicos,
+  crearUsuario,
+} from "../helpers/fixtures";
 
 const ADMIN_ID = "40000000-0000-4000-8000-000000000001";
 const AUX_SIN_PERMISO = "40000000-0000-4000-8000-000000000002";
@@ -31,7 +36,7 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
     const empRes = await db.query(
       `insert into public.empleados (nombre, identificacion, owner_id)
        values ('Empleado Prueba', '55443322', $1::uuid) returning id`,
-      [ADMIN_ID]
+      [ADMIN_ID],
     );
     empleadoId = (empRes.rows[0] as { id: string }).id;
   });
@@ -42,8 +47,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
         db.query(
           `insert into public.user_roles (user_id, role, owner_id)
            values ($1::uuid, 'auxiliar', $2::uuid)`,
-          [AUX_SIN_PERMISO, ADMIN_ID]
-        )
+          [AUX_SIN_PERMISO, ADMIN_ID],
+        ),
       ).rejects.toThrow(/permission denied for table user_roles/);
     });
   });
@@ -56,8 +61,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
         db.query(
           `insert into public.user_roles (user_id, role, owner_id)
            values ($1::uuid, 'admin', null)`,
-          [AUX_SIN_PERMISO]
-        )
+          [AUX_SIN_PERMISO],
+        ),
       ).rejects.toThrow(/El rol de Administrador solo se asigna directamente en la base de datos/);
     } finally {
       await db.exec(`set request.jwt.claim.sub = '';`);
@@ -70,8 +75,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
       db.query(
         `insert into public.user_roles (user_id, role, owner_id)
          values ($1::uuid, 'admin', null)`,
-        [AUX_CON_PERMISO]
-      )
+        [AUX_CON_PERMISO],
+      ),
     ).rejects.toThrow(/user_roles_un_solo_admin/);
   });
 
@@ -81,8 +86,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
         db.query(
           `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
            values ('SN-RECHAZADO', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid)`,
-          [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
-        )
+          [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
+        ),
       ).rejects.toThrow();
     });
 
@@ -93,7 +98,7 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
       const res = await db.query(
         `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
          values ('SN-PERMITIDO', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid) returning id`,
-        [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID]
+        [cat.tipoId, cat.marcaId, cat.sedeId, ADMIN_ID],
       );
       expect(res.rows).toHaveLength(1);
     });
@@ -105,8 +110,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
         db.query(
           `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
            values ('entrega', $1::uuid, $2::uuid, $3::uuid)`,
-          [empleadoId, AUX_SIN_PERMISO, ADMIN_ID]
-        )
+          [empleadoId, AUX_SIN_PERMISO, ADMIN_ID],
+        ),
       ).rejects.toThrow();
     });
 
@@ -116,7 +121,7 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
       const res = await db.query(
         `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
          values ('entrega', $1::uuid, $2::uuid, $3::uuid) returning id`,
-        [empleadoId, AUX_CON_PERMISO, ADMIN_ID]
+        [empleadoId, AUX_CON_PERMISO, ADMIN_ID],
       );
       expect(res.rows).toHaveLength(1);
     });
@@ -131,8 +136,8 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
         db.query(
           `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
            values ('cambio', $1::uuid, $2::uuid, $3::uuid)`,
-          [empleadoId, AUX_CON_PERMISO, ADMIN_ID]
-        )
+          [empleadoId, AUX_CON_PERMISO, ADMIN_ID],
+        ),
       ).rejects.toThrow();
     });
 
@@ -143,7 +148,7 @@ describe("RLS y Seguridad: Roles y Permisos Granulares", () => {
       const res = await db.query(
         `insert into public.actas (tipo, empleado_id, tecnico_id, owner_id)
          values ('cambio', $1::uuid, $2::uuid, $3::uuid) returning id`,
-        [empleadoId, AUX_CON_PERMISO, ADMIN_ID]
+        [empleadoId, AUX_CON_PERMISO, ADMIN_ID],
       );
       expect(res.rows).toHaveLength(1);
     });

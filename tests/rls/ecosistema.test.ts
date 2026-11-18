@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createTestDatabase, withUser } from "../helpers/pglite";
-import { asignarRol, concederPermiso, crearCatalogosBasicos, crearUsuario } from "../helpers/fixtures";
+import {
+  asignarRol,
+  concederPermiso,
+  crearCatalogosBasicos,
+  crearUsuario,
+} from "../helpers/fixtures";
 
 const ADMIN_A = "10000000-0000-4000-8000-000000000001";
 const AUX_A = "10000000-0000-4000-8000-000000000002";
@@ -37,28 +42,28 @@ describe("RLS: Aislamiento Multi-Ecosistema", () => {
     await db.query(
       `insert into public.empleados (nombre, identificacion, owner_id)
        values ('Empleado A', '101010', $1::uuid)`,
-      [ADMIN_A]
+      [ADMIN_A],
     );
 
     // Empleado en Ecosistema B
     await db.query(
       `insert into public.empleados (nombre, identificacion, owner_id)
        values ('Empleado B', '202020', $1::uuid)`,
-      [OWNER_B]
+      [OWNER_B],
     );
 
     // Equipo en Ecosistema A
     await db.query(
       `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
        values ('SR-ECO-A1', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid)`,
-      [catA.tipoId, catA.marcaId, catA.sedeId, ADMIN_A]
+      [catA.tipoId, catA.marcaId, catA.sedeId, ADMIN_A],
     );
 
     // Equipo en Ecosistema B
     await db.query(
       `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
        values ('SR-ECO-B1', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid)`,
-      [catB.tipoId, catB.marcaId, catB.sedeId, OWNER_B]
+      [catB.tipoId, catB.marcaId, catB.sedeId, OWNER_B],
     );
   });
 
@@ -96,8 +101,8 @@ describe("RLS: Aislamiento Multi-Ecosistema", () => {
         db.query(
           `insert into public.equipos (serie, tipo_id, marca_id, sede_id, estado, owner_id)
            values ('HACK-01', $1::uuid, $2::uuid, $3::uuid, 'disponible', $4::uuid)`,
-          [catA.tipoId, catA.marcaId, catA.sedeId, OWNER_B]
-        )
+          [catA.tipoId, catA.marcaId, catA.sedeId, OWNER_B],
+        ),
       ).rejects.toThrow();
     });
   });

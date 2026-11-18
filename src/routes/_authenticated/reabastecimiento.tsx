@@ -1,3 +1,6 @@
+import { fetchAll } from "@/lib/fetchAll";
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { hoyColombia, inicioDiaColombia, finExclusivoColombia } from "@/lib/fechas";
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -7,12 +10,28 @@ import { useCatalogos } from "@/lib/catalogos";
 import { fmtFecha } from "@/lib/constantes";
 import { cop, pedidoAtrasado } from "@/lib/proveedores";
 import { PageHeader } from "@/components/Estado";
-import { ConfigAlertas, ProveedoresSheet, infoLlegadaPedido, useStockBajo } from "@/components/StockAlertas";
+import {
+  ConfigAlertas,
+  ProveedoresSheet,
+  infoLlegadaPedido,
+  useStockBajo,
+} from "@/components/StockAlertas";
 import { DetallePedido, EstadoPedido, NuevoPedido } from "@/components/Pedidos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataTablePagination, FilasSkeleton, usePaginacion } from "@/components/DataTablePagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DataTablePagination,
+  FilasSkeleton,
+  usePaginacion,
+} from "@/components/DataTablePagination";
 import {
   AlertTriangle,
   Building2,
@@ -83,21 +102,38 @@ function Reabastecimiento() {
   const pag = usePaginacion(filtros);
   const provs = useQuery({
     queryKey: ["proveedores_lista"],
-    queryFn: async () => (await supabase.from("proveedores").select("id, nombre").order("nombre")).data ?? [],
+    queryFn: () =>
+      fetchAll((a, b) =>
+        supabase.from("proveedores").select("id, nombre").order("nombre").order("id").range(a, b),
+      ),
   });
   const principales = useQuery({
     queryKey: ["proveedores_articulo", "principales"],
-    queryFn: async () =>
-      (await supabase.from("articulo_proveedores").select("tipo_id, proveedor_id, precio_referencia").eq("es_principal", true)).data ?? [],
+    queryFn: () =>
+      fetchAll((a, b) =>
+        supabase
+          .from("articulo_proveedores")
+          .select("tipo_id, proveedor_id, precio_referencia")
+          .eq("es_principal", true)
+          .order("id")
+          .range(a, b),
+      ),
   });
   const enCurso = useQuery({
     queryKey: ["pedidos", "en_curso_tipos"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("pedido_lineas")
-        .select("tipo_id, pedido:pedidos_compra!inner(id, numero, estado, fecha_esperada)")
-        .in("pedido.estado", ["borrador", "pedido", "parcial"]);
-      const map = new Map<string, { id: string; numero: number; estado: string; fecha_esperada: string | null }>();
+      const data = await fetchAll((a, b) =>
+        supabase
+          .from("pedido_lineas")
+          .select("tipo_id, pedido:pedidos_compra!inner(id, numero, estado, fecha_esperada)")
+          .in("pedido.estado", ["borrador", "pedido", "parcial"])
+          .order("id")
+          .range(a, b),
+      );
+      const map = new Map<
+        string,
+        { id: string; numero: number; estado: string; fecha_esperada: string | null }
+      >();
       for (const r of (data ?? []) as unknown as {
         tipo_id: string;
         pedido: { id: string; numero: number; estado: string; fecha_esperada: string | null };
@@ -113,18 +149,20 @@ function Reabastecimiento() {
     let x = qb as any;
     if (estado === "abiertos") x = x.in("estado", ["borrador", "pedido", "parcial"]);
     else if (estado === "atrasados")
-      x = x.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", new Date().toISOString().slice(0, 10));
+      x = x.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", hoyColombia());
     else if (estado) x = x.eq("estado", estado);
     if (prov) x = x.eq("proveedor_id", prov);
-    if (desde) x = x.gte("created_at", desde);
-    if (hasta) x = x.lte("created_at", `${hasta}T23:59:59`);
+    if (desde) x = x.gte("created_at", inicioDiaColombia(desde));
+    if (hasta) x = x.lt("created_at", finExclusivoColombia(hasta));
     return x as T;
   };
   const q = useQuery({
     queryKey: ["pedidos", "lista", filtros, pag.desde, pag.hasta],
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, count, error } = await filtrar(supabase.from("pedidos_compra").select(SELECT, { count: "exact" }))
+      const { data, count, error } = await filtrar(
+        supabase.from("pedidos_compra").select(SELECT, { count: "exact" }),
+      )
         .order("created_at", { ascending: false })
         .range(pag.desde, pag.hasta);
       if (error) throw error;
@@ -132,14 +170,28 @@ function Reabastecimiento() {
     },
   });
 
-  const total = (f: Fila) => f.lineas.reduce((s, l) => s + l.cantidad * (Number(l.precio_estimado) || 0), 0);
-  const resumen = (f: Fila) => f.lineas.map((l) => `${cat.nombre(l.tipo_id)} ${l.recibida}/${l.cantidad}`).join(", ");
+  const total = (f: Fila) =>
+    f.lineas.reduce((s, l) => s + l.cantidad * (Number(l.precio_estimado) || 0), 0);
+  const resumen = (f: Fila) =>
+    f.lineas.map((l) => `${cat.nombre(l.tipo_id)} ${l.recibida}/${l.cantidad}`).join(", ");
   const bajos = stock.data ?? [];
 
   if (!me?.can("reabastecimiento_gestionar"))
-    return <p className="text-muted-foreground">No tiene permiso para gestionar reabastecimiento.</p>;
+    return (
+      <p className="text-muted-foreground">No tiene permiso para gestionar reabastecimiento.</p>
+    );
 
   const hayFiltrosExtra = Boolean(prov || desde || hasta || estado !== "abiertos");
+
+  if (stock.isError || provs.isError || principales.isError || enCurso.isError)
+    return (
+      <ErrorConsulta
+        reintentar={() =>
+          Promise.all([stock.refetch(), provs.refetch(), principales.refetch(), enCurso.refetch()])
+        }
+      />
+    );
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
 
   return (
     <div className="space-y-6">
@@ -168,7 +220,11 @@ function Reabastecimiento() {
                   : "border-success/30 bg-success/10 text-success"
               }`}
             >
-              {bajos.length > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              {bajos.length > 0 ? (
+                <AlertTriangle className="h-3.5 w-3.5" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
             </div>
             <div>
               <h2 className="text-sm font-semibold text-foreground">
@@ -182,7 +238,12 @@ function Reabastecimiento() {
             </div>
           </div>
           {bajos.length > 0 && (
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setVerProveedoresTipo(bajos[0]!.tipo_id)}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => setVerProveedoresTipo(bajos[0]!.tipo_id)}
+            >
               <Building2 className="mr-1.5 h-3.5 w-3.5" />
               Explorar proveedores en alerta
             </Button>
@@ -192,7 +253,12 @@ function Reabastecimiento() {
         {!bajos.length ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-xs text-muted-foreground">
             <span>No hay alertas de stock pendientes por atender en este momento.</span>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setConfigAlertas(true)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => setConfigAlertas(true)}
+            >
               Editar umbrales de stock →
             </Button>
           </div>
@@ -202,11 +268,18 @@ function Reabastecimiento() {
               const sugerida = Math.max(1, a.stock_minimo - a.disponibles + 1);
               const vincPrincipal = principales.data?.find((p) => p.tipo_id === a.tipo_id);
               const principal = vincPrincipal?.proveedor_id ?? null;
-              const nombrePrincipal = principal ? provs.data?.find((p) => p.id === principal)?.nombre : null;
+              const nombrePrincipal = principal
+                ? provs.data?.find((p) => p.id === principal)?.nombre
+                : null;
               const pedidoActivo = enCurso.data?.get(a.tipo_id);
               const yaPedido = Boolean(pedidoActivo);
-              const infoPedido = pedidoActivo ? infoLlegadaPedido(pedidoActivo.fecha_esperada) : null;
-              const pct = a.stock_minimo > 0 ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100)) : 0;
+              const infoPedido = pedidoActivo
+                ? infoLlegadaPedido(pedidoActivo.fecha_esperada)
+                : null;
+              const pct =
+                a.stock_minimo > 0
+                  ? Math.min(100, Math.round((a.disponibles / a.stock_minimo) * 100))
+                  : 0;
 
               return (
                 <div
@@ -231,8 +304,8 @@ function Reabastecimiento() {
                           }`}
                           title="Ver pedido en curso"
                         >
-                          <Clock className="h-2.5 w-2.5" />
-                          #{pedidoActivo.numero} · {infoPedido?.etiqueta ?? "En curso"}
+                          <Clock className="h-2.5 w-2.5" />#{pedidoActivo.numero} ·{" "}
+                          {infoPedido?.etiqueta ?? "En curso"}
                         </button>
                       ) : (
                         <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-destructive">
@@ -243,8 +316,8 @@ function Reabastecimiento() {
 
                     <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                       <span>
-                        Disponibles: <b className="font-mono text-destructive">{a.disponibles}</b> / mín.{" "}
-                        <b className="font-mono text-foreground">{a.stock_minimo}</b>
+                        Disponibles: <b className="font-mono text-destructive">{a.disponibles}</b> /
+                        mín. <b className="font-mono text-foreground">{a.stock_minimo}</b>
                       </span>
                       <span className="font-mono text-[11px]">{pct}%</span>
                     </div>
@@ -259,16 +332,20 @@ function Reabastecimiento() {
                       <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <CalendarClock className="h-3 w-3 shrink-0 text-primary" />
                         <span>
-                          Entrega esperada: <b className="text-foreground">{fmtFecha(pedidoActivo.fecha_esperada)}</b>
+                          Entrega esperada:{" "}
+                          <b className="text-foreground">{fmtFecha(pedidoActivo.fecha_esperada)}</b>
                         </span>
                       </div>
                     )}
 
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Star className={`h-3 w-3 shrink-0 ${nombrePrincipal ? "fill-warning text-warning" : "text-muted-foreground/40"}`} />
+                      <Star
+                        className={`h-3 w-3 shrink-0 ${nombrePrincipal ? "fill-warning text-warning" : "text-muted-foreground/40"}`}
+                      />
                       {nombrePrincipal ? (
                         <span className="truncate">
-                          Principal: <b className="font-medium text-foreground">{nombrePrincipal}</b>
+                          Principal:{" "}
+                          <b className="font-medium text-foreground">{nombrePrincipal}</b>
                         </span>
                       ) : (
                         <span className="italic">Sin proveedor principal asignado</span>
@@ -409,7 +486,9 @@ function Reabastecimiento() {
                       #{f.numero}
                     </span>
                   </TableCell>
-                  <TableCell className="font-medium text-foreground">{f.proveedor?.nombre ?? "—"}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {f.proveedor?.nombre ?? "—"}
+                  </TableCell>
                   <TableCell className="max-w-72">
                     <div className="truncate text-xs text-foreground" title={resumen(f)}>
                       {resumen(f) || "Sin líneas"}
@@ -438,7 +517,9 @@ function Reabastecimiento() {
                   <TableCell className="text-xs">
                     {f.fecha_esperada ? (
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={atrasado ? "font-medium text-destructive" : "text-foreground"}>
+                        <span
+                          className={atrasado ? "font-medium text-destructive" : "text-foreground"}
+                        >
                           {fmtFecha(f.fecha_esperada)}
                         </span>
                         {(f.estado === "pedido" || f.estado === "parcial") && (
@@ -455,7 +536,9 @@ function Reabastecimiento() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs font-medium">{cop(total(f))}</TableCell>
+                  <TableCell className="text-right font-mono text-xs font-medium">
+                    {cop(total(f))}
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -477,7 +560,9 @@ function Reabastecimiento() {
         />
       </div>
 
-      {nuevo && <NuevoPedido inicial={nuevo} onClose={() => setNuevo(null)} onCreado={(id) => setVer(id)} />}
+      {nuevo && (
+        <NuevoPedido inicial={nuevo} onClose={() => setNuevo(null)} onCreado={(id) => setVer(id)} />
+      )}
       <DetallePedido id={ver} onClose={() => setVer(null)} />
       <ProveedoresSheet tipoId={verProveedoresTipo} onClose={() => setVerProveedoresTipo(null)} />
       <ConfigAlertas

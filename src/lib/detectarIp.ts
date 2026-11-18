@@ -4,6 +4,8 @@ let ipClienteCache: string | null = null;
  * Detecta la IP corporativa o pública de salida del cliente (navegador).
  */
 export async function detectarIpNavegador(): Promise<string | undefined> {
+  // En intranet la IP la obtiene el servidor de la conexión, sin consultas externas.
+  if (import.meta.env["VITE_LOCAL_ONLY"] === "true") return undefined;
   if (ipClienteCache) return ipClienteCache;
   try {
     const res = await fetch("https://api.ipify.org?format=json", {

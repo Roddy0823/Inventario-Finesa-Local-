@@ -1,3 +1,5 @@
+import { fetchAll, fetchByIds } from "@/lib/fetchAll";
+import { ErrorConsulta } from "@/components/ErrorConsulta";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -41,7 +43,10 @@ export const Route = createFileRoute("/_authenticated/empleados/$id")({
   head: () => ({
     meta: [
       { title: "Perfil del empleado — Finesa" },
-      { name: "description", content: "Equipos asignados, historial de actas y movimientos del colaborador." },
+      {
+        name: "description",
+        content: "Equipos asignados, historial de actas y movimientos del colaborador.",
+      },
     ],
   }),
   component: PerfilEmpleado,
@@ -108,13 +113,29 @@ function PerfilEmpleado() {
     queryFn: async () => {
       const [e, eq, ac] = await Promise.all([
         supabase.from("empleados").select("*").eq("id", id).maybeSingle(),
-        supabase.from("equipos").select("*").eq("empleado_id", id).order("created_at", { ascending: false }),
-        supabase.from("actas").select("*").eq("empleado_id", id).order("created_at", { ascending: false }),
+        fetchAll((a, b) =>
+          supabase
+            .from("equipos")
+            .select("*")
+            .eq("empleado_id", id)
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(a, b),
+        ),
+        fetchAll((a, b) =>
+          supabase
+            .from("actas")
+            .select("*")
+            .eq("empleado_id", id)
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(a, b),
+        ),
       ]);
       if (e.error) throw e.error;
 
-      const actas = ac.data ?? [];
-      const equiposActuales = eq.data ?? [];
+      const actas = ac;
+      const equiposActuales = eq;
       const actaIds = actas.map((a) => a.id);
       const eqIdsActuales = equiposActuales.map((x) => x.id);
 
@@ -132,20 +153,28 @@ function PerfilEmpleado() {
       const promesasHist = [];
       if (actaIds.length > 0) {
         promesasHist.push(
-          supabase
-            .from("equipo_historial")
-            .select("id, equipo_id, evento, detalle, acta_id, user_id, created_at")
-            .in("acta_id", actaIds.slice(0, 200))
-            .order("created_at", { ascending: false }),
+          fetchByIds(actaIds, (ids, a, b) =>
+            supabase
+              .from("equipo_historial")
+              .select("id, equipo_id, evento, detalle, acta_id, user_id, created_at")
+              .in("acta_id", ids)
+              .order("created_at", { ascending: false })
+              .order("id")
+              .range(a, b),
+          ),
         );
       }
       if (eqIdsActuales.length > 0) {
         promesasHist.push(
-          supabase
-            .from("equipo_historial")
-            .select("id, equipo_id, evento, detalle, acta_id, user_id, created_at")
-            .in("equipo_id", eqIdsActuales.slice(0, 200))
-            .order("created_at", { ascending: false }),
+          fetchByIds(eqIdsActuales, (ids, a, b) =>
+            supabase
+              .from("equipo_historial")
+              .select("id, equipo_id, evento, detalle, acta_id, user_id, created_at")
+              .in("equipo_id", ids)
+              .order("created_at", { ascending: false })
+              .order("id")
+              .range(a, b),
+          ),
         );
       }
 
@@ -153,7 +182,7 @@ function PerfilEmpleado() {
         const resHist = await Promise.all(promesasHist);
         const mapaMovs = new Map<string, (typeof movs)[number]>();
         for (const r of resHist) {
-          for (const item of r.data ?? []) {
+          for (const item of r) {
             mapaMovs.set(item.id, item);
           }
         }
@@ -164,16 +193,25 @@ function PerfilEmpleado() {
       const userIdsHist = [...new Set(movs.map((m) => m.user_id).filter(Boolean))] as string[];
 
       const [eqHistRes, usrRes] = await Promise.all([
-        eqIdsHist.length
-          ? supabase.from("equipos").select("id, serie, modelo, tipo_id, marca_id").in("id", eqIdsHist.slice(0, 200))
-          : Promise.resolve({ data: [] }),
-        userIdsHist.length
-          ? supabase.from("profiles").select("id, nombre, email").in("id", userIdsHist.slice(0, 200))
-          : Promise.resolve({ data: [] }),
+        fetchByIds(eqIdsHist, (ids, a, b) =>
+          supabase
+            .from("equipos")
+            .select("id, serie, modelo, tipo_id, marca_id")
+            .in("id", ids)
+            .order("id")
+            .range(a, b),
+        ),
+        fetchByIds(userIdsHist, (ids, a, b) =>
+          supabase
+            .from("profiles")
+            .select("id, nombre, email")
+            .in("id", ids)
+            .order("id")
+            .range(a, b),
+        ),
       ]);
-
-      const mapaEquipos = Object.fromEntries((eqHistRes.data ?? []).map((x) => [x.id, x]));
-      const mapaUsuarios = Object.fromEntries((usrRes.data ?? []).map((u) => [u.id, u.nombre || u.email]));
+      const mapaEquipos = Object.fromEntries(eqHistRes.map((x) => [x.id, x]));
+      const mapaUsuarios = Object.fromEntries(usrRes.map((u) => [u.id, u.nombre || u.email]));
 
       return {
         e: e.data,
@@ -188,9 +226,9 @@ function PerfilEmpleado() {
 
   const e = q.data?.e;
   const equipos = q.data?.equipos ?? [];
-  const actas = q.data?.actas ?? [];
-  const movs = q.data?.movs ?? [];
-  const mapaEquipos = q.data?.mapaEquipos ?? {};
+  const actas = useMemo(() => q.data?.actas ?? [], [q.data?.actas]);
+  const movs = useMemo(() => q.data?.movs ?? [], [q.data?.movs]);
+  const mapaEquipos = useMemo(() => q.data?.mapaEquipos ?? {}, [q.data?.mapaEquipos]);
   const mapaUsuarios = q.data?.mapaUsuarios ?? {};
 
   const actasFiltradas = useMemo(() => {
@@ -220,13 +258,16 @@ function PerfilEmpleado() {
         const modelo = eq?.modelo?.toLowerCase() ?? "";
         const det = (m.detalle ?? "").toLowerCase();
         const ev = (EVENTO_LABEL[m.evento] ?? m.evento).toLowerCase();
-        if (!serie.includes(t) && !modelo.includes(t) && !det.includes(t) && !ev.includes(t)) return false;
+        if (!serie.includes(t) && !modelo.includes(t) && !det.includes(t) && !ev.includes(t))
+          return false;
       }
       return true;
     });
   }, [movs, buscaMov, eventoMov, mapaEquipos]);
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando perfil del colaborador…</p>;
+  if (q.isLoading)
+    return <p className="text-sm text-muted-foreground">Cargando perfil del colaborador…</p>;
+  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
   if (!e) return <p className="text-sm text-muted-foreground">Empleado no encontrado.</p>;
 
   const asignados = equipos.filter((x) => x.estado === "asignado");
@@ -235,14 +276,19 @@ function PerfilEmpleado() {
   const movsPagina = movsFiltrados.slice(pagMovs.desde, pagMovs.desde + pagMovs.tamano);
 
   async function onHabilitar() {
-    if (e?.user_id && !confirm("Se generará un PIN nuevo y el anterior dejará de funcionar. ¿Continuar?")) return;
+    if (
+      e?.user_id &&
+      !confirm("Se generará un PIN nuevo y el anterior dejará de funcionar. ¿Continuar?")
+    )
+      return;
     try {
       const r = await habilitar({ data: { empleadoId: id } });
       if ("error" in r) return toast.error(r.error);
       const texto = `Portal Finesa — Cédula: ${r.cedula} · PIN: ${r.pin}`;
       await copiarTexto(texto);
       toast.success(`PIN de acceso generado: ${r.pin}`, {
-        description: "Copiado al portapapeles. Entréguelo al colaborador: ingresa con su cédula y este PIN.",
+        description:
+          "Copiado al portapapeles. Entréguelo al colaborador: ingresa con su cédula y este PIN.",
         duration: 30000,
       });
       qc.invalidateQueries({ queryKey: ["empleado", id] });
@@ -258,7 +304,8 @@ function PerfilEmpleado() {
         `Paz y salvo pendiente: el empleado tiene ${asignados.length} equipo(s) asignado(s). Realice primero el acta de devolución.`,
       );
     }
-    if (!confirm("¿Marcar al empleado como inactivo? Se conservará todo su historial documental.")) return;
+    if (!confirm("¿Marcar al empleado como inactivo? Se conservará todo su historial documental."))
+      return;
     try {
       const r = await retirar({ data: { empleadoId: id } });
       if ("error" in r && r.error) {
@@ -289,7 +336,10 @@ function PerfilEmpleado() {
     <div className="space-y-5">
       {/* Navegación superior */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Link to="/empleados" className="inline-flex items-center gap-1 font-medium hover:text-foreground">
+        <Link
+          to="/empleados"
+          className="inline-flex items-center gap-1 font-medium hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" />
           Empleados
         </Link>
@@ -401,7 +451,8 @@ function PerfilEmpleado() {
               </span>
             ) : (
               <span className="font-display text-xl font-bold text-foreground">
-                {asignados.length} {asignados.length === 1 ? "equipo asignado" : "equipos asignados"}
+                {asignados.length}{" "}
+                {asignados.length === 1 ? "equipo asignado" : "equipos asignados"}
               </span>
             )}
           </div>
@@ -430,7 +481,8 @@ function PerfilEmpleado() {
             )}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {actas.length} {actas.length === 1 ? "acta registrada" : "actas registradas"} en su historial
+            {actas.length} {actas.length === 1 ? "acta registrada" : "actas registradas"} en su
+            historial
           </div>
         </div>
       </div>
@@ -453,7 +505,9 @@ function PerfilEmpleado() {
           <div className="flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center">
             <CheckCircle2 className="h-7 w-7 text-success" />
             <p className="text-sm font-medium text-foreground">Colaborador en Paz y Salvo</p>
-            <p className="text-xs text-muted-foreground">No tiene equipos asignados ni pendientes de devolución.</p>
+            <p className="text-xs text-muted-foreground">
+              No tiene equipos asignados ni pendientes de devolución.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -485,7 +539,8 @@ function PerfilEmpleado() {
                           type="button"
                           title="Copiar serie"
                           onClick={async () => {
-                            if (await copiarTexto(x.serie)) toast.success(`Serie ${x.serie} copiada`);
+                            if (await copiarTexto(x.serie))
+                              toast.success(`Serie ${x.serie} copiada`);
                           }}
                           className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
                         >
@@ -493,14 +548,21 @@ function PerfilEmpleado() {
                         </button>
                       </div>
                       {x.activo_fijo && (
-                        <div className="font-mono text-[10px] text-muted-foreground">AF: {x.activo_fijo}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">
+                          AF: {x.activo_fijo}
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-xs font-medium text-foreground">{cat.nombre(x.tipo_id)}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{cat.nombre(x.marca_id)}</span> {x.modelo ?? ""}
+                    <td className="px-4 py-2.5 text-xs font-medium text-foreground">
+                      {cat.nombre(x.tipo_id)}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{cat.nombre(x.sede_id)}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{cat.nombre(x.marca_id)}</span>{" "}
+                      {x.modelo ?? ""}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      {cat.nombre(x.sede_id)}
+                    </td>
                     <td className="px-4 py-2.5 text-xs">
                       {x.prestamo_hasta ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
@@ -580,13 +642,21 @@ function PerfilEmpleado() {
                   onChange={(ev) => setBuscaActa(ev.target.value)}
                 />
               </div>
-              <select className={selCls} value={tipoActa} onChange={(ev) => setTipoActa(ev.target.value)}>
+              <select
+                className={selCls}
+                value={tipoActa}
+                onChange={(ev) => setTipoActa(ev.target.value)}
+              >
                 <option value="">Todos los tipos</option>
                 <option value="entrega">Entrega</option>
                 <option value="devolucion">Devolución</option>
                 <option value="cambio">Cambio</option>
               </select>
-              <select className={selCls} value={estadoActa} onChange={(ev) => setEstadoActa(ev.target.value)}>
+              <select
+                className={selCls}
+                value={estadoActa}
+                onChange={(ev) => setEstadoActa(ev.target.value)}
+              >
                 <option value="">Todos los estados</option>
                 <option value="firmada">Firmada</option>
                 <option value="pendiente">Pendiente</option>
@@ -619,7 +689,11 @@ function PerfilEmpleado() {
                   onChange={(ev) => setBuscaMov(ev.target.value)}
                 />
               </div>
-              <select className={selCls} value={eventoMov} onChange={(ev) => setEventoMov(ev.target.value)}>
+              <select
+                className={selCls}
+                value={eventoMov}
+                onChange={(ev) => setEventoMov(ev.target.value)}
+              >
                 <option value="">Todos los eventos</option>
                 {Object.entries(EVENTO_LABEL).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -686,7 +760,9 @@ function PerfilEmpleado() {
                       <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                         {a.firmado_at ? fmtFecha(a.firmado_at, true) : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{a.tecnico_nombre || "—"}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {a.tecnico_nombre || "—"}
+                      </td>
                       <td className="px-4 py-2.5">
                         <EstadoActa estado={a.estado} />
                       </td>
@@ -704,7 +780,12 @@ function PerfilEmpleado() {
                               PDF
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs"
+                            asChild
+                          >
                             <Link to="/actas/$id" params={{ id: a.id }}>
                               Ver acta
                             </Link>
@@ -715,7 +796,10 @@ function PerfilEmpleado() {
                   ))}
                   {!actasPagina.length && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-10 text-center text-xs text-muted-foreground"
+                      >
                         No hay actas registradas para este colaborador con los filtros actuales.
                       </td>
                     </tr>
@@ -765,7 +849,8 @@ function PerfilEmpleado() {
                                 {eq.serie}
                               </Link>
                               <div className="text-[11px] text-muted-foreground">
-                                {cat.nombre(eq.tipo_id)} · {cat.nombre(eq.marca_id)} {eq.modelo ?? ""}
+                                {cat.nombre(eq.tipo_id)} · {cat.nombre(eq.marca_id)}{" "}
+                                {eq.modelo ?? ""}
                               </div>
                             </div>
                           ) : (
@@ -779,7 +864,9 @@ function PerfilEmpleado() {
                         </td>
                         <td className="max-w-md px-4 py-2.5 text-xs text-muted-foreground">
                           {m.detalle
-                            ? m.detalle.replace(/en_reparacion/g, "en reparación").replace(/de_baja/g, "de baja")
+                            ? m.detalle
+                                .replace(/en_reparacion/g, "en reparación")
+                                .replace(/de_baja/g, "de baja")
                             : "—"}
                         </td>
                         <td className="px-4 py-2.5 text-xs text-muted-foreground">
@@ -803,7 +890,10 @@ function PerfilEmpleado() {
                   })}
                   {!movsPagina.length && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-10 text-center text-xs text-muted-foreground">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-10 text-center text-xs text-muted-foreground"
+                      >
                         Sin movimientos de equipos asociados a este colaborador.
                       </td>
                     </tr>

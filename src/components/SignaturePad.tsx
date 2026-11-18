@@ -6,11 +6,18 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
+  const hasInk = useRef(false);
+  const pixelRatio = useRef(1);
   const [empty, setEmpty] = useState(true);
 
   useEffect(() => {
     const c = ref.current!;
+    hasInk.current = false;
+    drawing.current = false;
+    last.current = null;
+    setEmpty(true);
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    pixelRatio.current = ratio;
     const w = c.offsetWidth;
     const h = c.offsetHeight;
     c.width = w * ratio;
@@ -21,11 +28,17 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#0B2545";
-  }, []);
+    onChange(null);
+    return () => onChange(null);
+  }, [onChange]);
 
   const pos = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    const c = ref.current!;
+    return {
+      x: ((e.clientX - r.left) * c.width) / r.width / pixelRatio.current,
+      y: ((e.clientY - r.top) * c.height) / r.height / pixelRatio.current,
+    };
   };
 
   const down = (e: React.PointerEvent) => {
@@ -37,23 +50,27 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
   const move = (e: React.PointerEvent) => {
     if (!drawing.current) return;
     const p = pos(e);
+    if (!last.current || Math.hypot(p.x - last.current.x, p.y - last.current.y) < 0.5) return;
     const ctx = ref.current!.getContext("2d")!;
     ctx.beginPath();
     ctx.moveTo(last.current!.x, last.current!.y);
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last.current = p;
+    hasInk.current = true;
     if (empty) setEmpty(false);
   };
   const up = () => {
     if (!drawing.current) return;
     drawing.current = false;
-    onChange(ref.current!.toDataURL("image/png"));
+    onChange(hasInk.current ? ref.current!.toDataURL("image/png") : null);
   };
   const clear = () => {
     const c = ref.current!;
     c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
     setEmpty(true);
+    hasInk.current = false;
+    drawing.current = false;
     onChange(null);
   };
 
@@ -67,6 +84,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
           onPointerMove={move}
           onPointerUp={up}
           onPointerLeave={up}
+          onPointerCancel={up}
           aria-label="Área de firma"
         />
         {empty && (

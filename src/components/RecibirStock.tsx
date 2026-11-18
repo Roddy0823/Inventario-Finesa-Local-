@@ -1,3 +1,4 @@
+import { hoyColombia } from "@/lib/fechas";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Barcode, PackageCheck, ShieldCheck } from "lucide-react";
 
@@ -34,7 +41,8 @@ export function RecibirStock({
   const qc = useQueryClient();
   const provs = useQuery({
     queryKey: ["proveedores_lista"],
-    queryFn: async () => (await supabase.from("proveedores").select("id, nombre").order("nombre")).data ?? [],
+    queryFn: async () =>
+      (await supabase.from("proveedores").select("id, nombre").order("nombre")).data ?? [],
   });
   const [f, setF] = useState({
     proveedor_id: proveedorId ?? "",
@@ -49,7 +57,14 @@ export function RecibirStock({
     sinSerial: "",
   });
   const [guardando, setGuardando] = useState(false);
-  const seriales = [...new Set(f.seriales.split(/[\n,;]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  const seriales = [
+    ...new Set(
+      f.seriales
+        .split(/[\n,;]+/)
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ];
   const sinSerial = Math.max(0, Math.min(500, Number(f.sinSerial) || 0));
   const total = seriales.length + sinSerial;
   const valorNum = f.valor ? Number(f.valor) : null;
@@ -62,7 +77,8 @@ export function RecibirStock({
     if (!f.proveedor_id || !f.tipo_id) return toast.error("Seleccione proveedor y tipo de equipo");
     if (!total) return toast.error("Escriba al menos un serial o una cantidad sin serial");
     const valor = f.valor ? Number(f.valor) : null;
-    if (valor !== null && (!Number.isFinite(valor) || valor < 0)) return toast.error("Valor inválido");
+    if (valor !== null && (!Number.isFinite(valor) || valor < 0))
+      return toast.error("Valor inválido");
     setGuardando(true);
     const nombreProv = provs.data?.find((p) => p.id === f.proveedor_id)?.nombre ?? null;
     const base = {
@@ -85,9 +101,13 @@ export function RecibirStock({
     const { error } = await supabase.from("equipos").insert(filas);
     if (error) {
       setGuardando(false);
-      return toast.error(error.code === "23505" ? "Alguno de los seriales ya existe en el inventario." : errMsg(error));
+      return toast.error(
+        error.code === "23505"
+          ? "Alguno de los seriales ya existe en el inventario."
+          : errMsg(error),
+      );
     }
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = hoyColombia();
     const { data: vin } = await supabase
       .from("articulo_proveedores")
       .select("id")
@@ -100,9 +120,12 @@ export function RecibirStock({
         .update({ ultima_compra: hoy, ...(valor !== null ? { ultimo_precio: valor } : {}) })
         .eq("id", vin.id);
     } else {
-      await supabase
-        .from("articulo_proveedores")
-        .insert({ tipo_id: f.tipo_id, proveedor_id: f.proveedor_id, ultima_compra: hoy, ultimo_precio: valor });
+      await supabase.from("articulo_proveedores").insert({
+        tipo_id: f.tipo_id,
+        proveedor_id: f.proveedor_id,
+        ultima_compra: hoy,
+        ultimo_precio: valor,
+      });
     }
     setGuardando(false);
     toast.success(`${total} equipo(s) registrados como disponibles`);
@@ -128,9 +151,12 @@ export function RecibirStock({
               <PackageCheck className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold tracking-tight">Recibir stock del proveedor</DialogTitle>
+              <DialogTitle className="text-base font-semibold tracking-tight">
+                Recibir stock del proveedor
+              </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Registra un lote directo en el inventario con estado Disponible y actualiza el último precio de compra.
+                Registra un lote directo en el inventario con estado Disponible y actualiza el
+                último precio de compra.
               </p>
             </div>
           </div>
@@ -155,21 +181,33 @@ export function RecibirStock({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Tipo de equipo *</Label>
-              <select className={sel} value={f.tipo_id} onChange={(e) => setF({ ...f, tipo_id: e.target.value })}>
+              <select
+                className={sel}
+                value={f.tipo_id}
+                onChange={(e) => setF({ ...f, tipo_id: e.target.value })}
+              >
                 <option value="">Seleccione…</option>
                 {opc("tipo_equipo")}
               </select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Marca</Label>
-              <select className={sel} value={f.marca_id} onChange={(e) => setF({ ...f, marca_id: e.target.value })}>
+              <select
+                className={sel}
+                value={f.marca_id}
+                onChange={(e) => setF({ ...f, marca_id: e.target.value })}
+              >
                 <option value="">—</option>
                 {opc("marca")}
               </select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Sede de destino</Label>
-              <select className={sel} value={f.sede_id} onChange={(e) => setF({ ...f, sede_id: e.target.value })}>
+              <select
+                className={sel}
+                value={f.sede_id}
+                onChange={(e) => setF({ ...f, sede_id: e.target.value })}
+              >
                 <option value="">—</option>
                 {opc("sede")}
               </select>
@@ -263,8 +301,8 @@ export function RecibirStock({
                 />
               </div>
               <div className="text-right text-xs text-muted-foreground">
-                Se ingresarán <b className="font-semibold text-foreground">{total}</b> unidad(es) como{" "}
-                <span className="font-medium text-success">Disponibles</span>
+                Se ingresarán <b className="font-semibold text-foreground">{total}</b> unidad(es)
+                como <span className="font-medium text-success">Disponibles</span>
                 {subtotal > 0 && (
                   <span className="ml-1.5 font-mono text-foreground">· {cop(subtotal)}</span>
                 )}

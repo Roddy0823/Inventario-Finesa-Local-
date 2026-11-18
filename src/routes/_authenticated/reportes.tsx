@@ -1,3 +1,5 @@
+import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { hoyColombia, inicioDiaColombia, finExclusivoColombia } from "@/lib/fechas";
 import { fetchAll } from "@/lib/fetchAll";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -58,13 +60,13 @@ const sel =
 function restarDias(dias: number) {
   const d = new Date();
   d.setDate(d.getDate() - dias);
-  return d.toISOString().slice(0, 10);
+  return hoyColombia(d);
 }
 
 function Reportes() {
   const { data: me } = useMe();
   const cat = useCatalogos();
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyColombia();
   const inicioMes = hoy.slice(0, 8) + "01";
   const inicioAnio = hoy.slice(0, 4) + "-01-01";
 
@@ -80,7 +82,11 @@ function Reportes() {
 
   // 3. Actas por empleado
   const [busca, setBusca] = useState("");
-  const [empSel, setEmpSel] = useState<{ id: string; nombre: string; identificacion: string } | null>(null);
+  const [empSel, setEmpSel] = useState<{
+    id: string;
+    nombre: string;
+    identificacion: string;
+  } | null>(null);
   const [eDesde, setEDesde] = useState("");
   const [eHasta, setEHasta] = useState("");
   const [eTipo, setETipo] = useState("");
@@ -96,7 +102,8 @@ function Reportes() {
 
   const provs = useQuery({
     queryKey: ["proveedores_lista"],
-    queryFn: async () => (await supabase.from("proveedores").select("id, nombre").order("nombre")).data ?? [],
+    queryFn: async () =>
+      (await supabase.from("proveedores").select("id, nombre").order("nombre")).data ?? [],
   });
 
   const emps = useQuery({
@@ -126,7 +133,9 @@ function Reportes() {
       if (estado) q = q.eq("estado", estado as "disponible");
       if (sede) q = q.eq("sede_id", sede);
       if (tipoEq) q = q.eq("tipo_id", tipoEq);
-      return (await q).count ?? 0;
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 
@@ -138,10 +147,12 @@ function Reportes() {
         .from("actas")
         .select("id", { count: "exact", head: true })
         .eq("estado", "firmada")
-        .gte("firmado_at", desde)
-        .lte("firmado_at", hasta + "T23:59:59");
+        .gte("firmado_at", inicioDiaColombia(desde))
+        .lt("firmado_at", finExclusivoColombia(hasta));
       if (aTipo) q = q.eq("tipo", aTipo as "entrega");
-      return (await q).count ?? 0;
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 
@@ -152,15 +163,26 @@ function Reportes() {
       let q = supabase
         .from("pedidos_compra")
         .select("id", { count: "exact", head: true })
-        .gte("created_at", pDesde)
-        .lte("created_at", pHasta + "T23:59:59");
-      if (pEstado === "atrasado") q = q.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", hoy);
+        .gte("created_at", inicioDiaColombia(pDesde))
+        .lt("created_at", finExclusivoColombia(pHasta));
+      if (pEstado === "atrasado")
+        q = q.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", hoy);
       else if (pEstado) q = q.eq("estado", pEstado);
       if (pProv) q = q.eq("proveedor_id", pProv);
-      return (await q).count ?? 0;
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 
+  if (conteoInv.isError || conteoActas.isError || conteoPedidos.isError)
+    return (
+      <ErrorConsulta
+        reintentar={() =>
+          Promise.all([conteoInv.refetch(), conteoActas.refetch(), conteoPedidos.refetch()])
+        }
+      />
+    );
   if (!me?.can("reportes_exportar"))
     return <p className="text-muted-foreground">No tiene permiso para exportar reportes.</p>;
 
@@ -191,8 +213,21 @@ function Reportes() {
       const subtitulo = `Estado: ${estado ? ESTADO_EQUIPO[estado as "disponible"]?.label : "Todos"} · Sede: ${
         sede ? cat.nombre(sede) : "Todas"
       }${tipoEq ? ` · Tipo: ${cat.nombre(tipoEq)}` : ""}`;
-      const resumen = [`Total equipos: ${data.length}`, ...Object.entries(cuenta).map(([k, v]) => `${k}: ${v}`)];
-      const columnas = ["Serie", "Activo fijo", "Tipo", "Marca", "Modelo", "Sede", "Estado", "Responsable", "Cédula"];
+      const resumen = [
+        `Total equipos: ${data.length}`,
+        ...Object.entries(cuenta).map(([k, v]) => `${k}: ${v}`),
+      ];
+      const columnas = [
+        "Serie",
+        "Activo fijo",
+        "Tipo",
+        "Marca",
+        "Modelo",
+        "Sede",
+        "Estado",
+        "Responsable",
+        "Cédula",
+      ];
       const filasTabla = data.map((e) => {
         const emp = e.empleado as Emp;
         return [
@@ -274,16 +309,17 @@ function Reportes() {
         let q = supabase
           .from("actas")
           .select(
-            "*, empleado:empleados(nombre, identificacion), items:acta_items(estado_fisico, equipo:equipos(serie, activo_fijo, modelo, tipo_id, marca_id))",
+            "*, empleado:empleados(nombre, identificacion), items:acta_items(direccion, estado_fisico, equipo:equipos(serie, activo_fijo, modelo, tipo_id, marca_id))",
           )
           .eq("estado", "firmada")
-          .gte("firmado_at", desde)
-          .lte("firmado_at", hasta + "T23:59:59");
+          .gte("firmado_at", inicioDiaColombia(desde))
+          .lt("firmado_at", finExclusivoColombia(hasta));
         if (aTipo) q = q.eq("tipo", aTipo as "entrega");
         return q.order("firmado_at").order("id").range(a, b);
       });
       if (!data?.length) return toast.info("No hay actas firmadas en el periodo seleccionado");
       type It = {
+        direccion: string | null;
         estado_fisico: string | null;
         equipo: {
           serie: string;
@@ -296,10 +332,16 @@ function Reportes() {
       const filas = data.flatMap((a) => {
         const emp = a.empleado as Emp;
         const items = ((a.items ?? []) as unknown as It[]).filter((i) => i.equipo);
-        return items.map((i) => ({ a, emp, e: i.equipo!, estado: i.estado_fisico ?? "" }));
+        return items.map((i) => ({
+          a,
+          emp,
+          e: i.equipo!,
+          direccion: i.direccion ?? (a.tipo === "devolucion" ? "devolucion" : "entrega"),
+          estado: i.estado_fisico ?? "",
+        }));
       });
       const ent = data.filter((a) => a.tipo === "entrega").length;
-      const eqEnt = filas.filter((f) => f.a.tipo === "entrega").length;
+      const eqEnt = filas.filter((f) => f.direccion === "entrega").length;
       const subtitulo = `Periodo: ${fmtFecha(desde)} a ${fmtFecha(hasta)}${aTipo ? ` · Tipo: ${TIPO_ACTA[aTipo]}` : ""}`;
       const resumen = [
         `Actas: ${data.length} (${ent} entregas, ${data.length - ent} devoluciones/cambios)`,
@@ -309,6 +351,7 @@ function Reportes() {
       const columnas = [
         "Acta",
         "Tipo",
+        "Movimiento",
         "Fecha de firma",
         "Empleado",
         "Cédula",
@@ -319,9 +362,10 @@ function Reportes() {
         "Serie",
         "Activo fijo",
       ];
-      const filasTabla = filas.map(({ a, emp, e }) => [
+      const filasTabla = filas.map(({ a, emp, e, direccion }) => [
         `#${a.numero}`,
         TIPO_ACTA[a.tipo] ?? a.tipo,
+        TIPO_ACTA[direccion] ?? direccion,
         fmtFecha(a.firmado_at, true),
         emp?.nombre ?? "",
         emp?.identificacion ?? "",
@@ -349,9 +393,10 @@ function Reportes() {
       if (formato === "csv") {
         descargarCSV(
           `actas_firmadas_${desde}_${hasta}.csv`,
-          filas.map(({ a, emp, e, estado }) => ({
+          filas.map(({ a, emp, e, estado, direccion }) => ({
             numero_acta: a.numero,
             tipo: TIPO_ACTA[a.tipo],
+            movimiento: TIPO_ACTA[direccion] ?? direccion,
             fecha_firma: fmtFecha(a.firmado_at, true),
             empleado: emp?.nombre ?? "",
             identificacion: emp?.identificacion ?? "",
@@ -466,7 +511,12 @@ function Reportes() {
   async function pedidos(formato: "csv" | "pdf" | "preview") {
     setCargando(`ped_${formato}`);
     try {
-      type L = { tipo_id: string; cantidad: number; recibida: number; precio_estimado: number | null };
+      type L = {
+        tipo_id: string;
+        cantidad: number;
+        recibida: number;
+        precio_estimado: number | null;
+      };
       type P = {
         numero: number;
         estado: string;
@@ -484,15 +534,17 @@ function Reportes() {
           .select(
             "numero, estado, fecha_pedido, fecha_esperada, created_at, cerrado_at, creado_nombre, proveedor:proveedores(nombre), lineas:pedido_lineas(tipo_id, cantidad, recibida, precio_estimado)",
           )
-          .gte("created_at", pDesde)
-          .lte("created_at", pHasta + "T23:59:59");
-        if (pEstado === "atrasado") q = q.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", hoy);
+          .gte("created_at", inicioDiaColombia(pDesde))
+          .lt("created_at", finExclusivoColombia(pHasta));
+        if (pEstado === "atrasado")
+          q = q.in("estado", ["pedido", "parcial"]).lt("fecha_esperada", hoy);
         else if (pEstado) q = q.eq("estado", pEstado);
         if (pProv) q = q.eq("proveedor_id", pProv);
         return q.order("numero").range(a, b);
       })) as unknown as P[];
       if (!data?.length) return toast.info("No hay pedidos en el periodo seleccionado");
-      const est = (p: P) => (pedidoAtrasado(p) ? "Atrasado" : (ESTADOS_PEDIDO[p.estado] ?? p.estado));
+      const est = (p: P) =>
+        pedidoAtrasado(p) ? "Atrasado" : (ESTADOS_PEDIDO[p.estado] ?? p.estado);
       const filas = data.flatMap((p) =>
         p.lineas.map((l) => ({ p, l, valor: l.cantidad * (Number(l.precio_estimado) || 0) })),
       );
@@ -591,16 +643,22 @@ function Reportes() {
     try {
       const empId = empSel.id;
       const emp = (
-        await supabase.from("empleados").select("nombre, identificacion, cargo").eq("id", empId).single()
+        await supabase
+          .from("empleados")
+          .select("nombre, identificacion, cargo")
+          .eq("id", empId)
+          .single()
       ).data;
       const data = await fetchAll((a, b) => {
         let q = supabase
           .from("actas")
-          .select("*, items:acta_items(estado_fisico, equipo:equipos(serie, activo_fijo, modelo, tipo_id, marca_id))")
+          .select(
+            "*, items:acta_items(direccion, estado_fisico, equipo:equipos(serie, activo_fijo, modelo, tipo_id, marca_id))",
+          )
           .eq("empleado_id", empId)
           .eq("estado", "firmada");
-        if (eDesde) q = q.gte("firmado_at", eDesde);
-        if (eHasta) q = q.lte("firmado_at", eHasta + "T23:59:59");
+        if (eDesde) q = q.gte("firmado_at", inicioDiaColombia(eDesde));
+        if (eHasta) q = q.lt("firmado_at", finExclusivoColombia(eHasta));
         if (eTipo) q = q.eq("tipo", eTipo as "entrega");
         return q.order("firmado_at").order("id").range(a, b);
       });
@@ -614,6 +672,7 @@ function Reportes() {
             .in("estado", ["asignado", "en_reparacion"])
         ).count ?? 0;
       type It = {
+        direccion: string | null;
         estado_fisico: string | null;
         equipo: {
           serie: string;
@@ -626,9 +685,14 @@ function Reportes() {
       const filas = data.flatMap((a) =>
         ((a.items ?? []) as unknown as It[])
           .filter((i) => i.equipo)
-          .map((i) => ({ a, e: i.equipo!, estado: i.estado_fisico ?? "" })),
+          .map((i) => ({
+            a,
+            e: i.equipo!,
+            direccion: i.direccion ?? (a.tipo === "devolucion" ? "devolucion" : "entrega"),
+            estado: i.estado_fisico ?? "",
+          })),
       );
-      const ent = filas.filter((f) => f.a.tipo === "entrega").length;
+      const ent = filas.filter((f) => f.direccion === "entrega").length;
       const base = `actas_${emp?.identificacion ?? "empleado"}`;
       const subtitulo = `${emp?.nombre ?? ""} · C.C. ${emp?.identificacion ?? ""}${
         emp?.cargo ? ` · ${emp.cargo}` : ""
@@ -646,6 +710,7 @@ function Reportes() {
       const columnas = [
         "Acta",
         "Tipo",
+        "Movimiento",
         "Fecha de firma",
         "Técnico",
         "Tipo equipo",
@@ -655,9 +720,10 @@ function Reportes() {
         "Activo fijo",
         "Estado físico",
       ];
-      const filasTabla = filas.map(({ a, e, estado }) => [
+      const filasTabla = filas.map(({ a, e, estado, direccion }) => [
         `#${a.numero}`,
         TIPO_ACTA[a.tipo] ?? a.tipo,
+        TIPO_ACTA[direccion] ?? direccion,
         fmtFecha(a.firmado_at, true),
         a.tecnico_nombre ?? "",
         cat.nombre(e.tipo_id),
@@ -684,9 +750,10 @@ function Reportes() {
       if (formato === "csv") {
         descargarCSV(
           `${base}.csv`,
-          filas.map(({ a, e, estado }) => ({
+          filas.map(({ a, e, estado, direccion }) => ({
             numero_acta: a.numero,
             tipo: TIPO_ACTA[a.tipo],
+            movimiento: TIPO_ACTA[direccion] ?? direccion,
             fecha_firma: fmtFecha(a.firmado_at, true),
             empleado: emp?.nombre ?? "",
             identificacion: emp?.identificacion ?? "",
@@ -739,13 +806,16 @@ function Reportes() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">Inventario actual de equipos</h2>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Inventario actual de equipos
+                    </h2>
                     <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Parque TI
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Listado detallado con seriales, activos fijos, responsable actual, sede y garantía.
+                    Listado detallado con seriales, activos fijos, responsable actual, sede y
+                    garantía.
                   </p>
                 </div>
               </div>
@@ -842,13 +912,16 @@ function Reportes() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">Actas firmadas por periodo</h2>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Actas firmadas por periodo
+                    </h2>
                     <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Trazabilidad
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Detalle equipo por equipo de todas las entregas, devoluciones y cambios firmados.
+                    Detalle equipo por equipo de todas las entregas, devoluciones y cambios
+                    firmados.
                   </p>
                 </div>
               </div>
@@ -872,11 +945,21 @@ function Reportes() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">Desde</Label>
-                <Input type="date" className="h-9 text-xs" value={desde} onChange={(e) => setDesde(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={desde}
+                  onChange={(e) => setDesde(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Hasta</Label>
-                <Input type="date" className="h-9 text-xs" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={hasta}
+                  onChange={(e) => setHasta(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Tipo de acta</Label>
@@ -911,13 +994,16 @@ function Reportes() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">Historial de actas por empleado</h2>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Historial de actas por empleado
+                    </h2>
                     <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Hoja de vida TI
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Consulta todas las actas firmadas por un colaborador y cuántos equipos tiene en su poder hoy.
+                    Consulta todas las actas firmadas por un colaborador y cuántos equipos tiene en
+                    su poder hoy.
                   </p>
                 </div>
               </div>
@@ -931,7 +1017,9 @@ function Reportes() {
                     <CheckCircle2 className="h-4 w-4 text-primary" />
                     <div>
                       <span className="font-semibold text-foreground">{empSel.nombre}</span>
-                      <span className="ml-2 font-mono text-muted-foreground">C.C. {empSel.identificacion}</span>
+                      <span className="ml-2 font-mono text-muted-foreground">
+                        C.C. {empSel.identificacion}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -968,11 +1056,15 @@ function Reportes() {
                           }}
                         >
                           <span className="font-medium text-foreground">{e.nombre}</span>
-                          <span className="font-mono text-muted-foreground">{e.identificacion}</span>
+                          <span className="font-mono text-muted-foreground">
+                            {e.identificacion}
+                          </span>
                         </button>
                       ))}
                       {emps.data && !emps.data.length && (
-                        <p className="px-3.5 py-2.5 text-xs text-muted-foreground">Sin coincidencias</p>
+                        <p className="px-3.5 py-2.5 text-xs text-muted-foreground">
+                          Sin coincidencias
+                        </p>
                       )}
                     </div>
                   )}
@@ -983,11 +1075,21 @@ function Reportes() {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs">Desde (opcional)</Label>
-                <Input type="date" className="h-9 text-xs" value={eDesde} onChange={(e) => setEDesde(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={eDesde}
+                  onChange={(e) => setEDesde(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Hasta (opcional)</Label>
-                <Input type="date" className="h-9 text-xs" value={eHasta} onChange={(e) => setEHasta(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={eHasta}
+                  onChange={(e) => setEHasta(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Tipo</Label>
@@ -1023,13 +1125,16 @@ function Reportes() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">Pedidos de reabastecimiento</h2>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Pedidos de reabastecimiento
+                    </h2>
                     <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Compras
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Órdenes de compra, cumplimiento de entregas, unidades pedidas vs. recibidas y montos.
+                    Órdenes de compra, cumplimiento de entregas, unidades pedidas vs. recibidas y
+                    montos.
                   </p>
                 </div>
               </div>
@@ -1053,15 +1158,29 @@ function Reportes() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">Desde</Label>
-                <Input type="date" className="h-9 text-xs" value={pDesde} onChange={(e) => setPDesde(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={pDesde}
+                  onChange={(e) => setPDesde(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Hasta</Label>
-                <Input type="date" className="h-9 text-xs" value={pHasta} onChange={(e) => setPHasta(e.target.value)} />
+                <Input
+                  type="date"
+                  className="h-9 text-xs"
+                  value={pHasta}
+                  onChange={(e) => setPHasta(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Estado del pedido</Label>
-                <select className={sel} value={pEstado} onChange={(e) => setPEstado(e.target.value)}>
+                <select
+                  className={sel}
+                  value={pEstado}
+                  onChange={(e) => setPEstado(e.target.value)}
+                >
                   <option value="">Todos los estados</option>
                   {Object.entries(ESTADOS_PEDIDO).map(([k, v]) => (
                     <option key={k} value={k}>
@@ -1103,14 +1222,17 @@ function Reportes() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-foreground"> Consolidado ejecutivo por proveedor</h2>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {" "}
+                    Consolidado ejecutivo por proveedor
+                  </h2>
                   <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                     Aliados comerciales
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Total de equipos suministrados, unidades en garantía vigente, valoración en pesos (COP), historial de
-                  reparaciones y tiempos promedio de respuesta.
+                  Total de equipos suministrados, unidades en garantía vigente, valoración en pesos
+                  (COP), historial de reparaciones y tiempos promedio de respuesta.
                 </p>
               </div>
             </div>
@@ -1165,7 +1287,12 @@ function Reportes() {
                     <p className="mt-0.5 text-xs text-muted-foreground">{previa.subtitulo}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={previa.onCsv}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={previa.onCsv}
+                    >
                       <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5 text-success" />
                       Descargar Excel (CSV)
                     </Button>
@@ -1296,7 +1423,12 @@ function AccionesReporte({
           {cargando === `${prefijo}_preview` ? "Cargando…" : "Vista previa"}
         </Button>
         {onReset && (
-          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={onReset}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-muted-foreground"
+            onClick={onReset}
+          >
             <RotateCcw className="mr-1 h-3 w-3" />
             Restablecer
           </Button>
