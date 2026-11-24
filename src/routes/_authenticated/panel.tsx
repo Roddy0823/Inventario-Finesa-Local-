@@ -20,6 +20,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AvisoActualizacion, ErrorConsulta } from "@/components/ErrorConsulta";
+import { hasBlockingQueryError } from "@/lib/query-errors";
 
 export const Route = createFileRoute("/_authenticated/panel")({
   head: () => ({
@@ -69,8 +71,7 @@ function Panel() {
   const stats = useQuery({
     queryKey: ["panel"],
     enabled: !!me?.isStaff,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
     queryFn: async () => {
       const [eq, pend, ult] = await Promise.all([
         supabase.rpc("panel_conteos"),
@@ -84,6 +85,7 @@ function Panel() {
           .order("created_at", { ascending: false })
           .limit(8),
       ]);
+      for (const result of [eq, pend, ult]) if (result.error) throw result.error;
       const conteo: Record<string, number> = {};
       let total = 0;
       for (const e of (eq.data ?? []) as { estado: string; total: number }[]) {
@@ -95,11 +97,13 @@ function Panel() {
   });
 
   if (me?.isEmpleado) return <Navigate to="/mi-portal" replace />;
+  if (hasBlockingQueryError(stats)) return <ErrorConsulta reintentar={() => stats.refetch()} />;
   const s = stats.data;
   const total = s?.total ?? 0;
 
   return (
     <div className="space-y-6">
+      <AvisoActualizacion consultas={[stats]} />
       <PageHeader
         title={`Hola, ${me?.nombre.split(" ")[0] ?? ""}`}
         desc="Resumen en tiempo real del inventario tecnológico y flujo de actas."

@@ -1,4 +1,5 @@
-import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { AvisoActualizacion, ErrorConsulta } from "@/components/ErrorConsulta";
+import { hasBlockingQueryError } from "@/lib/query-errors";
 import { fetchAll, fetchByIds } from "@/lib/fetchAll";
 import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -134,7 +135,8 @@ function Equipos() {
   const conteoQ = useQuery({
     queryKey: ["equipos", "conteo"],
     queryFn: async () => {
-      const { data } = await supabase.rpc("panel_conteos");
+      const { data, error } = await supabase.rpc("panel_conteos");
+      if (error) throw error;
       const c: Record<string, number> = {};
       for (const r of (data ?? []) as { estado: string; total: number }[])
         c[r.estado] = Number(r.total);
@@ -152,7 +154,7 @@ function Equipos() {
   const q = useQuery({
     queryKey: ["equipos", "pagina", tab, filtros, pag.desde, pag.tamano],
     placeholderData: keepPreviousData,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       let s = supabase
         .from("equipos")
         .select("*, empleado:empleados(id, nombre)", { count: "exact" });
@@ -167,11 +169,13 @@ function Equipos() {
       if (f.marca) s = s.eq("marca_id", f.marca);
       if (f.sede) s = s.eq("sede_id", f.sede);
       if (texto) {
-        const { data: emps } = await supabase
+        const { data: emps, error } = await supabase
           .from("empleados")
           .select("id")
           .ilike("nombre", `%${texto}%`)
-          .limit(200);
+          .limit(200)
+          .abortSignal(signal);
+        if (error) throw error;
         const conds = [
           `serie.ilike.%${texto}%`,
           `activo_fijo.ilike.%${texto}%`,
@@ -185,7 +189,8 @@ function Equipos() {
       const { data, count, error } = await s
         .order(ordenCol, { ascending: false })
         .order("id")
-        .range(pag.desde, pag.hasta);
+        .range(pag.desde, pag.hasta)
+        .abortSignal(signal);
       if (error) throw error;
       return { filas: data ?? [], total: count ?? 0 };
     },
@@ -237,10 +242,12 @@ function Equipos() {
     );
   }
 
-  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
+  if (hasBlockingQueryError(q)) return <ErrorConsulta reintentar={() => q.refetch()} />;
+  if (hasBlockingQueryError(conteoQ)) return <ErrorConsulta reintentar={() => conteoQ.refetch()} />;
 
   return (
     <div className="space-y-4">
+      <AvisoActualizacion consultas={[q, conteoQ]} />
       <PageHeader
         title="Inventario"
         desc={`${total.toLocaleString("es-CO")} equipo(s) en la vista actual`}

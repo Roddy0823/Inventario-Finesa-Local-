@@ -13,7 +13,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { meQuery, useMe } from "@/lib/me";
+import { loadVerifiedMe, useMe } from "@/lib/me";
+import { createRealtimeInvalidator, REALTIME_QUERY_KEYS } from "@/lib/realtime-invalidation";
 import { puedeAccederRuta } from "@/lib/route-access";
 import { catalogosQuery } from "@/lib/catalogos";
 import { cargaMasivaStore, useCargaMasivaStore } from "@/lib/cargaMasivaStore";
@@ -82,19 +83,15 @@ import {
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ context, location }) => {
-    const me = await context.queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+    const me = await loadVerifiedMe(context.queryClient);
     if (!me) throw redirect({ to: "/", replace: true });
-    const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    if (!data.user || data.user.id !== me.id) throw redirect({ to: "/", replace: true });
-    const user = data.user;
     if (me.activo && (me.isStaff || me.isEmpleado)) {
       if (!puedeAccederRuta(me, location.pathname)) {
         throw redirect({ to: me.isEmpleado ? "/mi-portal" : "/panel", replace: true });
       }
       void context.queryClient.prefetchQuery(catalogosQuery);
     }
-    return { user };
+    return { lastSignInAt: me.lastSignInAt };
   },
   component: Shell,
 });
@@ -112,7 +109,7 @@ function getInitials(name: string): string {
 }
 
 function Shell() {
-  const { user } = Route.useRouteContext();
+  const { lastSignInAt } = Route.useRouteContext();
   const { data: me, isLoading, isError: meError, refetch: refetchMe } = useMe();
   const obtenerConfigFn = useServerFn(obtenerConfigPortal);
   const configPortal = useQuery({
@@ -146,6 +143,8 @@ function Shell() {
 
   // Sincronización en tiempo real (Supabase Realtime) para actualizar automáticamente paneles y repositorios
   useEffect(() => {
+    const invalidator = createRealtimeInvalidator(qc);
+    let subscribed = false;
     const ch = supabase
       .channel("inventario-cambios-globales")
       .on("postgres_changes", { event: "*", schema: "public", table: "actas" }, () => {
@@ -157,7 +156,7 @@ function Shell() {
           "panel",
           "estadisticas",
           "estadisticas_avanzadas",
-        ].forEach((key) => void qc.invalidateQueries({ queryKey: [key] }));
+        ].forEach(invalidator.add);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "equipos" }, () => {
         [
@@ -169,30 +168,30 @@ function Shell() {
           "panel",
           "estadisticas",
           "estadisticas_avanzadas",
-        ].forEach((key) => void qc.invalidateQueries({ queryKey: [key] }));
+        ].forEach(invalidator.add);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "reportes_falla" }, () => {
-        ["portal", "panel", "equipo"].forEach(
-          (key) => void qc.invalidateQueries({ queryKey: [key] }),
-        );
+        ["portal", "panel", "equipo"].forEach(invalidator.add);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "certificaciones" }, () => {
-        ["portal", "certificaciones"].forEach(
-          (key) => void qc.invalidateQueries({ queryKey: [key] }),
-        );
+        ["portal", "certificaciones"].forEach(invalidator.add);
       })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "certificacion_respuestas" },
         () => {
-          ["portal", "certificaciones"].forEach(
-            (key) => void qc.invalidateQueries({ queryKey: [key] }),
-          );
+          ["portal", "certificaciones"].forEach(invalidator.add);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED") return;
+        // Realtime no reproduce cambios ocurridos durante una desconexión.
+        if (subscribed) REALTIME_QUERY_KEYS.forEach(invalidator.add);
+        subscribed = true;
+      });
 
     return () => {
+      invalidator.dispose();
       void supabase.removeChannel(ch);
     };
   }, [qc]);
@@ -264,7 +263,7 @@ function Shell() {
     const verificarYSalirSiExpiro = (): boolean => {
       if (saliendo) return true;
       let last = leerUltimaActividad();
-      const lastSignIn = user?.last_sign_in_at ? Date.parse(user.last_sign_in_at) : 0;
+      const lastSignIn = lastSignInAt ? Date.parse(lastSignInAt) : 0;
       if (lastSignIn > 0 && last < lastSignIn) {
         registrarActividadGlobal();
         last = Date.now();
@@ -320,7 +319,7 @@ function Shell() {
     const timer = window.setInterval(() => {
       if (saliendo) return;
       let last = leerUltimaActividad();
-      const lastSignIn = user?.last_sign_in_at ? Date.parse(user.last_sign_in_at) : 0;
+      const lastSignIn = lastSignInAt ? Date.parse(lastSignInAt) : 0;
       if (lastSignIn > 0 && last < lastSignIn) {
         registrarActividadGlobal();
         last = Date.now();
@@ -348,7 +347,7 @@ function Shell() {
       window.removeEventListener("storage", onStorage);
       window.clearInterval(timer);
     };
-  }, [me, idleMin, salir, user.last_sign_in_at]);
+  }, [me, idleMin, salir, lastSignInAt]);
 
   if (isLoading || (me?.isEmpleado && configPortal.isLoading)) {
     return (

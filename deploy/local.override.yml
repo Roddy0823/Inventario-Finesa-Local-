@@ -1,15 +1,32 @@
 # Prueba en este computador. No publica bases de datos ni paneles en la LAN.
+# Detectar servicios listos enseguida durante el arranque. El primer chequeo
+# correcto termina la espera; los intervalos normales del upstream se conservan.
+x-startup-healthcheck: &startup-healthcheck
+  start_interval: 1s
+  start_period: 60s
 services:
   api-gw:
+    healthcheck: *startup-healthcheck
     ports: !override
       - "127.0.0.1:8000:8000"
   db:
+    healthcheck: *startup-healthcheck
     volumes:
       - finesa-db:/var/lib/postgresql/data
+  studio:
+    healthcheck: *startup-healthcheck
+  auth:
+    healthcheck: *startup-healthcheck
+  rest:
+    healthcheck: *startup-healthcheck
+  realtime:
+    healthcheck: *startup-healthcheck
   storage:
+    healthcheck: *startup-healthcheck
     volumes:
       - finesa-storage:/var/lib/storage
   imgproxy:
+    healthcheck: *startup-healthcheck
     volumes:
       - finesa-storage:/var/lib/storage:ro
   functions:

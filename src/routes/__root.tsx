@@ -16,6 +16,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 import { registrarActividadGlobal, limpiarActividadGlobal } from "@/lib/inactividad";
 import { cargaMasivaStore } from "@/lib/cargaMasivaStore";
+import { authCacheAction } from "@/lib/auth-cache";
+import { meQuery } from "@/lib/me";
 
 function NotFoundComponent() {
   return (
@@ -193,29 +195,30 @@ function RootComponent() {
   }, []);
 
   useEffect(() => {
-    let userId: string | null = null;
+    let userId: string | null | undefined = queryClient.getQueryData(meQuery.queryKey)?.id;
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       const nextUserId = session?.user.id ?? null;
       cargaMasivaStore.setIdentity(nextUserId);
-      const changedUser = userId !== nextUserId;
+      const action = authCacheAction(event, userId, nextUserId);
       userId = nextUserId;
-      if (event === "SIGNED_IN" && changedUser) {
+      if (action.signedIn) {
         registrarActividadGlobal();
       } else if (event === "SIGNED_OUT") {
         limpiarActividadGlobal();
       }
-      if (changedUser || event === "SIGNED_OUT") {
+      if (action.clear) {
         void queryClient.cancelQueries();
         queryClient.clear();
       }
-      if (event === "INITIAL_SESSION" || (event === "SIGNED_IN" && !changedUser)) return;
+      if (!action.refreshIdentity && !action.invalidateRouter) return;
       // Ejecutar fuera del callback de Auth: los guards consultan Supabase
       // y no deben esperar el bloqueo interno que mantiene este callback.
       const timer = setTimeout(() => {
         pending.delete(timer);
-        void router.invalidate();
-        if (event !== "SIGNED_OUT") void queryClient.invalidateQueries();
+        if (action.refreshIdentity)
+          void queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
+        if (action.invalidateRouter) void router.invalidate();
       }, 0);
       pending.add(timer);
     });

@@ -5,6 +5,7 @@ import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveLocalRuntime } from "./local-runtime.mjs";
 import { migrationChecksums } from "./migration-checksum.mjs";
+import { waitForLocalApi } from "./local-readiness.mjs";
 import {
   LOCAL_PROJECT,
   resolveDockerExecutable,
@@ -207,6 +208,12 @@ try {
       assertMatchingRuntime(stack, originalStacks);
     }
     docker("up", "-d", "--wait", "--wait-timeout", "240");
+    const config = appEnv();
+    await waitForLocalApi({
+      url: config.SUPABASE_URL,
+      anonKey: config.SUPABASE_PUBLISHABLE_KEY,
+    });
+    console.log("Autenticacion, datos y archivos listos.");
   } else if (action === "migrate") {
     // Solo aplicar después de que Auth y Storage terminen sus propias migraciones.
     const { readdirSync } = await import("node:fs");

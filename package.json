@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:check": "vite build --mode check",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -16,7 +17,7 @@
     "test:watch": "vitest",
     "test:runtime": "node --test scripts/*.test.mjs",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck && bun run lint && bun run test && bun run test:runtime && bun run build"
+    "check": "bun run typecheck && bun run lint && bun run test && bun run test:runtime && bun run build:check"
   },
   "overrides": {
     "rolldown": "1.2.19"

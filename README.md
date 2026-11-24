@@ -2,13 +2,24 @@
 
 Plataforma corporativa integral para la gestión del ciclo de vida de activos tecnológicos, control de inventario de equipos de cómputo, generación y firma electrónica de actas digitales, administración de proveedores y portal de autoservicio para **Finesa S.A.**
 
+## Documentación de la aplicación
+
+Consulte el [índice de documentación](docs/README.md), revisado contra el código local el 24 de noviembre de 2026:
+
+- [Manual de usuario](docs/manual-usuario.md).
+- [Roles y seguridad](docs/roles-y-seguridad.md).
+- [Instalación y operación](docs/instalacion-y-operacion.md).
+- [Arquitectura](docs/arquitectura.md).
+- [Modelo de datos](docs/modelo-de-datos.md).
+- [Mantenimiento y validación](docs/mantenimiento-y-validacion.md).
+
 ---
 
 ## Características Principales
 
 ### 1. Gestión de Activos y Equipos de Cómputo
 
-- **Ciclo de vida completo**: Estados parametrizados (disponible, asignado, en alistamiento, en reparación, de baja definitivo y contingencia/préstamo con fecha límite).
+- **Ciclo de vida completo**: Estados disponible, asignado, en alistamiento, en reparación y de baja. Los préstamos se representan como entregas temporales con fecha límite, no como un estado adicional.
 - **Flujo de baja con soporte adjunto**: Proceso formal de desincorporación de activos fijos con soporte técnico o acta pericial adjunta (`baja_documento_path`), trazabilidad contable y enlaces firmados de consulta.
 - **Trazabilidad total**: Historial inmutable de movimientos auditado automáticamente mediante triggers en base de datos.
 - **Series y activos**: Verificación única de número de serie y placa de inventario corporativa con corrección auditada exclusiva para el Administrador (`corregir_serie`).
@@ -40,18 +51,18 @@ Plataforma corporativa integral para la gestión del ciclo de vida de activos te
 ### 4. Reabastecimiento y Proveedores
 
 - **Gestión de proveedores**: Directorio de aliados estratégicos y catálogo de artículos suministrados.
-- **Pedidos de compra**: Flujo de solicitud, aprobación y recepción.
+- **Pedidos de compra**: Registro en borrador o como pedido realizado, recepción parcial/completa y cancelación con motivo.
 - **Recepción de stock**: Procesamiento atómico vía RPC en base de datos que ingresa los equipos y actualiza el pedido en una sola transacción segura.
 
 ### 5. Carga Masiva Inteligente
 
-- Importación y actualización de catálogos, empleados, equipos y asignaciones mediante plantillas Excel (`.xlsx`).
-- Pre-validación transaccional exhaustiva: cotejo de seriales duplicados, activos fijos y cédulas contra la base de datos y dentro del archivo antes del commit en lote.
-- Vista previa interactiva con desglose de filas válidas, existentes y con error, inserción en lotes de 200 y aislamiento automático ante inconsistencias.
+- Importación de empleados, equipos y asignaciones iniciales mediante plantillas Excel (`.xlsx`), con creación autorizada de catálogos faltantes.
+- Validación previa de seriales, activos fijos y cédulas contra la base de datos y dentro del archivo. Los registros detectados como existentes se omiten.
+- Vista previa de filas válidas, existentes y con error; inserción en lotes de 200. La importación puede dejar resultados parciales y no constituye una transacción única para todo el archivo.
 
 ### 6. Catálogos Maestros y Auditoría Ligera
 
-- **Catálogos cerrados**: Estandarización de marcas, modelos, tipos de equipo, sedes, áreas y empresas.
+- **Catálogos cerrados**: Estandarización de marcas, tipos de equipo, sedes, áreas y empresas. El modelo se registra en la ficha del equipo.
 - **Bitácora de auditoría inmutable**: Registro de eventos críticos (inicios de sesión, cambios de estado, firmas, anulaciones) bloqueados contra eliminación o modificación.
 - **Carga optimizada de auditoría**: Proyección en servidor de columnas ligeras con carga bajo demanda de diferencias `JSONB` (`antes` y `despues`) al expandir filas, eliminando transferencia masiva de datos en listas y exportación.
 
@@ -211,14 +222,22 @@ al confirmar la transacción; los reintentos reconocen una firma ya confirmada. 
 imágenes se validan también por dimensiones, estructura y tamaño descomprimido, y
 los PDF distribuyen textos y equipos entre páginas sin recortar contenido.
 
-`bun run check` agrupa tipos, lint, pruebas, scripts y compilación. El workflow de
-GitHub ejecuta esas comprobaciones en Windows y Linux. El servidor de desarrollo
+`bun run check` agrupa tipos, lint, pruebas, scripts y una compilación de validación
+(`bun run build:check`) en `.cache/check-build`. Esa salida no sustituye la aplicación
+local de `.output` y no está preparada para iniciar sesión. El workflow de GitHub
+ejecuta esas comprobaciones en Windows y Linux.
+
+Para compilar la instalación local utilice `node scripts/local.mjs build`: incorpora
+la URL y la clave pública de Supabase que necesita el navegador. `bun run build`
+sin esas variables se rechaza antes de reemplazar `.output`. Inyectarlas únicamente
+al iniciar el servidor no corrige una compilación del navegador ya generada.
+El servidor de desarrollo
 escucha en `127.0.0.1`; el acceso LAN corresponde al servidor de producción y sus
 restricciones de red.
 
 ### Requisitos Previos
 
-- [Bun](https://bun.sh/) (v1.1+ recomendado)
+- Node 24 y [Bun](https://bun.sh/) 1.4.4, versiones de referencia usadas por la configuración de comprobaciones del proyecto.
 - Instancia de [Supabase](https://supabase.com/) configurada con las migraciones y RPCs del proyecto
 
 ### Configuración del Entorno
@@ -249,7 +268,7 @@ restricciones de red.
 
 El personal ingresa con correo y contraseña de Supabase Auth; los empleados usan `ingresoEmpleado` con cédula y PIN. No hay registro público de administradores: su asignación se realiza exclusivamente por SQL.
 
-Las rutas bajo `_authenticated` validan la identidad con `getUser()` y consultan el perfil, roles y permisos antes de permitir la navegación. `src/lib/route-access.ts` define el acceso por URL: los empleados usan `/mi-portal` y `/ajustes`, y el personal accede a los módulos según sus permisos. Las cuentas inactivas o sin rol ven la pantalla de cuenta sin acceso. Al cerrar sesión o cambiar de usuario se limpia la caché de consultas.
+Las rutas bajo `_authenticated` validan la identidad con `getUser()` y consultan el perfil, roles y permisos. Esa verificación se reutiliza durante 30 segundos para evitar peticiones duplicadas al navegar; la sesión local solo se consulta para detectar cambios de cuenta. `src/lib/route-access.ts` define el acceso por URL: los empleados usan `/mi-portal` y `/ajustes`, y el personal accede a los módulos según sus permisos. Las cuentas inactivas o sin rol ven la pantalla de cuenta sin acceso. Al cerrar sesión o cambiar de usuario se limpia la caché de consultas. Las RLS y las funciones de servidor verifican cada operación, independientemente de esa caché.
 
 La sesión del navegador se mantiene en localStorage, y este grupo de rutas tiene SSR deshabilitado. Las funciones protegidas de servidor reciben un Bearer token, validan sus claims y el estado activo mediante `requireSupabaseAuth`. Las políticas RLS y las RPC siguen siendo responsables de autorizar los datos y operaciones.
 
@@ -266,6 +285,16 @@ bun run dev
 ```
 
 La aplicación estará disponible en `http://localhost:8080`.
+
+### Rendimiento y sincronización local
+
+`Iniciar-Finesa.cmd` espera a que los contenedores estén saludables y comprueba las APIs de autenticación, datos y archivos. Los controles de salud se ejecutan cada segundo durante el arranque, manteniendo los intervalos habituales después. Si Docker Desktop está apagado, debe abrirlo y esperar a que esté listo; ese tiempo depende del equipo.
+
+Cuando la aplicación ya responde, el iniciador comprueba las APIs y una conexión temporal a Realtime para reutilizarla sin volver a ejecutar Docker Compose. Si falla alguna comprobación, vuelve al arranque normal con sus controles de identidad. `--check` conserva la comprobación completa de Docker.
+
+La migración `20261123011416_optimizar_consultas_rls.sql` evalúa identidad y permisos una vez por consulta, conservando las políticas de aislamiento. En una instalación existente se aplica con `node scripts/local.mjs migrate`, después de respaldar la base. No modifica las migraciones anteriores.
+
+La interfaz agrupa cambios de Realtime durante 300 ms y vuelve a consultar después de una reconexión. Renovar el token de sesión ya no recarga todo el inventario. Si una actualización falla por un problema temporal, los listados conservan la última lectura y muestran un aviso para reintentar; los errores de autorización siguen bloqueando el acceso.
 
 ### Scripts Disponibles
 

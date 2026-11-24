@@ -1,4 +1,5 @@
-import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { AvisoActualizacion, ErrorConsulta } from "@/components/ErrorConsulta";
+import { hasBlockingQueryError } from "@/lib/query-errors";
 import { hoyColombia, inicioDiaColombia, finExclusivoColombia } from "@/lib/fechas";
 import { normalizarPaginacion } from "@/lib/paginacion";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -133,45 +134,22 @@ function Repositorio() {
 
   const conteoQ = useQuery({
     queryKey: ["actas", "conteos"],
-    staleTime: 0,
-    refetchOnMount: "always",
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase.rpc("panel_conteos_actas");
-        if (!error && data && Array.isArray(data) && data.length > 0) {
-          const c: Record<string, number> = {};
-          let total = 0;
-          for (const r of data as { estado: string; total: number }[]) {
-            const val = Number(r.total);
-            c[r.estado] = val;
-            total += val;
-          }
-          return {
-            todas: total,
-            pendiente: c.pendiente ?? 0,
-            firmada: c.firmada ?? 0,
-            anulada: c.anulada ?? 0,
-          };
-        }
-      } catch {
-        /* fallback si aún no existe la función en la réplica local */
+    staleTime: 30_000,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await supabase.rpc("panel_conteos_actas").abortSignal(signal);
+      if (error) throw error;
+      const c: Record<string, number> = {};
+      let total = 0;
+      for (const r of data ?? []) {
+        const val = Number(r.total);
+        c[r.estado] = val;
+        total += val;
       }
-      const [todas, pendiente, firmada, anulada] = await Promise.all([
-        supabase.from("actas").select("id", { count: "exact", head: true }),
-        supabase
-          .from("actas")
-          .select("id", { count: "exact", head: true })
-          .eq("estado", "pendiente"),
-        supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "firmada"),
-        supabase.from("actas").select("id", { count: "exact", head: true }).eq("estado", "anulada"),
-      ]);
-      for (const result of [todas, pendiente, firmada, anulada])
-        if (result.error) throw result.error;
       return {
-        todas: todas.count ?? 0,
-        pendiente: pendiente.count ?? 0,
-        firmada: firmada.count ?? 0,
-        anulada: anulada.count ?? 0,
+        todas: total,
+        pendiente: c.pendiente ?? 0,
+        firmada: c.firmada ?? 0,
+        anulada: c.anulada ?? 0,
       };
     },
   });
@@ -179,17 +157,20 @@ function Repositorio() {
   const tecnicosQ = useQuery({
     queryKey: ["actas", "tecnicos-lista"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("nombre, email").order("nombre");
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("nombre, email")
+        .order("nombre");
+      if (error) throw error;
       return [...new Set((data ?? []).map((p) => p.nombre || p.email).filter(Boolean))] as string[];
     },
   });
 
   const q = useQuery({
     queryKey: ["actas", "repo-paginado", filtros, pag.desde, pag.tamano],
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
     placeholderData: keepPreviousData,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       let s = supabase
         .from("actas")
         .select(
@@ -204,11 +185,13 @@ function Repositorio() {
       if (tecnico) s = s.ilike("tecnico_nombre", `%${tecnico}%`);
 
       if (qParam) {
-        const { data: emps } = await supabase
+        const { data: emps, error } = await supabase
           .from("empleados")
           .select("id")
           .or(`nombre.ilike.%${qParam}%,identificacion.ilike.%${qParam}%`)
-          .limit(100);
+          .limit(100)
+          .abortSignal(signal);
+        if (error) throw error;
         const conds: string[] = [];
         const num = Number(qParam);
         if (!isNaN(num) && num > 0) conds.push(`numero.eq.${num}`);
@@ -223,7 +206,8 @@ function Repositorio() {
       const { data, count, error } = await s
         .order("created_at", { ascending: false })
         .order("id")
-        .range(pag.desde, pag.hasta);
+        .range(pag.desde, pag.hasta)
+        .abortSignal(signal);
 
       if (error) throw error;
       return { filas: (data ?? []) as Fila[], total: count ?? 0 };
@@ -233,7 +217,7 @@ function Repositorio() {
   const conteos = conteoQ.data ?? { todas: 0, pendiente: 0, firmada: 0, anulada: 0 };
   const filas = q.data?.filas ?? [];
   const total = q.data?.total ?? 0;
-  const tecnicos = tecnicosQ.data ?? [];
+  const tecnicos = hasBlockingQueryError(tecnicosQ) ? [] : (tecnicosQ.data ?? []);
 
   const puedeVer = me?.can("repositorio_ver");
   const descargables = filas.filter((a) => a.pdf_path);
@@ -285,11 +269,18 @@ function Repositorio() {
     "h-9 rounded-lg border border-input bg-card/70 px-3 text-xs font-medium text-foreground shadow-2xs transition-colors hover:border-border focus:border-primary/60 focus:outline-none";
   const hayFiltros = Boolean(desde || hasta || qParam || tecnico || tipo || estado);
 
-  if (conteoQ.isError) return <ErrorConsulta reintentar={() => conteoQ.refetch()} />;
-  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
+  if (hasBlockingQueryError(conteoQ)) return <ErrorConsulta reintentar={() => conteoQ.refetch()} />;
+  if (hasBlockingQueryError(q)) return <ErrorConsulta reintentar={() => q.refetch()} />;
 
   return (
     <div className="space-y-4">
+      <AvisoActualizacion consultas={[q, conteoQ]} />
+      {tecnicosQ.isError && (
+        <ErrorConsulta
+          mensaje="No se pudo actualizar la lista de técnicos para el filtro. Puede seguir consultando las actas o reintentar la lista."
+          reintentar={() => tecnicosQ.refetch()}
+        />
+      )}
       <PageHeader
         title="Repositorio de actas"
         desc="Consulte, filtre y descargue las actas digitales de entrega, devolución y cambio."

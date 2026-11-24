@@ -1,4 +1,5 @@
-import { ErrorConsulta } from "@/components/ErrorConsulta";
+import { AvisoActualizacion, ErrorConsulta } from "@/components/ErrorConsulta";
+import { hasBlockingQueryError } from "@/lib/query-errors";
 import { fetchAll, fetchByIds } from "@/lib/fetchAll";
 import { hoyColombia } from "@/lib/fechas";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -133,7 +134,7 @@ function Empleados() {
       pag.tamano,
     ],
     placeholderData: keepPreviousData,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       let s = supabase.from("empleados").select("*", { count: "exact" });
       if (estado !== "todos") s = s.eq("activo", estado === "activos");
       if (sede) s = s.eq("sede_id", sede);
@@ -149,7 +150,8 @@ function Empleados() {
       const { data, count, error } = await s
         .order("nombre")
         .order("id")
-        .range(pag.desde, pag.hasta);
+        .range(pag.desde, pag.hasta)
+        .abortSignal(signal);
       if (error) throw error;
       const filas = data ?? [];
       const ids = filas.map((e) => e.id);
@@ -162,7 +164,8 @@ function Empleados() {
             .eq("estado", "asignado")
             .in("empleado_id", ids)
             .order("id")
-            .range(a, b),
+            .range(a, b)
+            .abortSignal(signal),
         );
         for (const r of eqs ?? []) {
           if (r.empleado_id) conteoEquipos[r.empleado_id] = (conteoEquipos[r.empleado_id] ?? 0) + 1;
@@ -217,11 +220,13 @@ function Empleados() {
     }
   }
 
-  if (resumenQ.isError) return <ErrorConsulta reintentar={() => resumenQ.refetch()} />;
-  if (q.isError) return <ErrorConsulta reintentar={() => q.refetch()} />;
+  if (hasBlockingQueryError(resumenQ))
+    return <ErrorConsulta reintentar={() => resumenQ.refetch()} />;
+  if (hasBlockingQueryError(q)) return <ErrorConsulta reintentar={() => q.refetch()} />;
 
   return (
     <div className="space-y-5">
+      <AvisoActualizacion consultas={[q, resumenQ]} />
       <PageHeader
         title="Empleados"
         desc="Directorio corporativo de colaboradores, control de equipos a cargo, estado de paz y salvo y acceso al portal."

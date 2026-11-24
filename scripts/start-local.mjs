@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { resolveLocalRuntime } from "./local-runtime.mjs";
 import { resolveDockerExecutable } from "./local-docker.mjs";
+import { canReuseLocalApp } from "./local-readiness.mjs";
 
 const execFileAsync = promisify(execFile);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -140,21 +141,27 @@ try {
   const env = { ...process.env, FINESA_LOCAL_DIR: runtime };
   console.log(`Configuracion local: ${runtime}`);
   const alreadyRunning = await findRunningApp();
-  console.log("Comprobando Docker Desktop...");
-  await checkDocker(env);
-  if (!interrupted && checkOnly) {
+  if (await canReuseLocalApp({ alreadyRunning, checkOnly, runtime })) {
     console.log(
-      `Comprobacion correcta. ${alreadyRunning ? "Finesa ya responde en http://localhost:8080." : "El puerto 8080 esta disponible."}`,
+      "Finesa ya esta iniciado; autenticacion, datos, archivos y sincronizacion listos. Abra http://localhost:8080",
     );
-  } else if (!interrupted) {
-    console.log("Iniciando los servicios de Finesa. Esto puede tardar unos minutos...");
-    if ((await runLocal("up", env)) && !interrupted) {
-      if (await findRunningApp()) {
-        console.log("Finesa ya esta iniciado. Abra http://localhost:8080");
-      } else {
-        console.log("Iniciando la aplicacion en http://localhost:8080");
-        console.log("Mantenga esta ventana abierta. Presione Ctrl+C para cerrar la aplicacion.");
-        await runLocal("serve", env);
+  } else {
+    console.log("Comprobando Docker Desktop...");
+    await checkDocker(env);
+    if (!interrupted && checkOnly) {
+      console.log(
+        `Comprobacion correcta. ${alreadyRunning ? "Finesa ya responde en http://localhost:8080." : "El puerto 8080 esta disponible."}`,
+      );
+    } else if (!interrupted) {
+      console.log("Iniciando servicios y comprobando su disponibilidad...");
+      if ((await runLocal("up", env)) && !interrupted) {
+        if (await findRunningApp()) {
+          console.log("Finesa ya esta iniciado. Abra http://localhost:8080");
+        } else {
+          console.log("Iniciando la aplicacion en http://localhost:8080");
+          console.log("Mantenga esta ventana abierta. Presione Ctrl+C para cerrar la aplicacion.");
+          await runLocal("serve", env);
+        }
       }
     }
   }
